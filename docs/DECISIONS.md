@@ -2,6 +2,31 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-07: Tests con runner propio, sin PHPUnit
+`backend_api/tests/run.php` (decisión del usuario). Tests unitarios y de BD (`DbTestCase`, cada test
+en transacción con rollback). Corren en el contenedor dev; `deploy.sh` excluye `tests/`.
+**Por qué:** sin composer en flamenco y sin sumar dependencias; alcanza para lo que necesitamos.
+
+## 2026-11-07: Reglas históricas reforzadas con triggers
+Además de la API, la BD rechaza DELETE en tablas históricas (`forbid_delete`) y UPDATE/DELETE en los
+libros (`inventory_movements`, `financial_transactions`, `audit_logs`, `product_price_history`,
+`purchase_items`; `forbid_change`). Los ítems de un pedido solo cambian si está PENDIENTE y sin pagos.
+**Por qué:** "no eliminar registros históricos" es la regla más importante para la consistencia
+financiera; un bug o una consulta manual no debe poder romperla.
+
+## 2026-11-07: Sin migraciones "down"
+Las migraciones solo avanzan. En dev se vuelve a cero con `reset-dev.sh`; en staging/prod un error se
+corrige con una migración nueva.
+**Por qué:** con históricos que no se borran, un "down" en prod perdería datos.
+
+## 2026-11-07: Compras y gastos sin `business_date` propio
+Se reportan por `purchase_date` / `expense_date` (la fecha real que elige el usuario, que puede ser
+anterior al registro); esa fecha se copia a `financial_transactions.business_date`.
+El precio unitario de compra es en Bs con 2 decimales y `line_total = round(cantidad · precio, 2)`.
+
+## 2026-11-07: Puertos dev 5444 / 8082
+5432–5442 y 8080 ya los usan otros proyectos locales (gyros, Hobby-Store, etc.).
+
 ## 2026-11-07: Backend PHP 8.2 plano, sin composer ni framework
 Se descarta NestJS + TypeORM. La API es PHP 8.2 + PDO, como Hobby-Store; las migraciones son SQL
 numerado (`backend_api/sql/NNN_*.sql`) aplicado por `scripts/migrate.sh`.

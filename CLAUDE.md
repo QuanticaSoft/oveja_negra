@@ -53,4 +53,27 @@ Sistema POS y de gestión para una hamburguesería (Flutter + API PHP + PostgreS
 - La API usa el prefijo `/v1`.
 
 ## Comandos
-Se agregarán en la Fase 2, cuando exista el código (Docker dev, `migrate.sh`, `flutter test`).
+```bash
+docker compose -f infra/docker-compose.dev.yml up -d --build   # Postgres :5444 + API :8082
+backend_api/scripts/migrate.sh dev                             # aplica sql/ pendientes
+backend_api/scripts/reset-dev.sh                               # borra el schema de dev (solo dev)
+curl localhost:8082/v1/health
+
+docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php              # todos los tests
+docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php MoneyTest    # filtra por "Clase::metodo"
+
+backend_api/scripts/migrate.sh staging && backend_api/scripts/deploy.sh staging   # desde develop, con OK del usuario
+backend_api/scripts/backup.sh staging|prod
+```
+Instalación y flamenco: `docs/INSTALL.md`.
+
+## Backend: convenciones del código
+- Sin namespaces: el autoloader de `src/bootstrap.php` busca `src/Core/<Clase>.php` y
+  `src/Modules/*/<Clase>.php`, así que los nombres de clase deben ser únicos.
+- Rutas en `src/routes.php` con su permiso: `$router->post('/v1/orders', [OrdersController::class, 'create'], 'orders.create')`.
+  Los controllers terminan con `Response::ok()` / lanzan `ApiException` (nunca `echo`).
+- Dinero en PHP como **centavos `int`** (`Money`, `Validation::money`); hacia la BD con `Money::fromCents()`.
+- Tests: runner propio `backend_api/tests/run.php` (sin PHPUnit). `tests/Db/*` heredan de `DbTestCase`
+  (cada test en transacción con rollback; `assertDbRejects(SQLSTATE, sql)` para reglas de la BD).
+- Ojo en los `CHECK` con columnas NULL: `col = 'X'` con NULL da NULL y el CHECK **pasa**; usar
+  `IS NOT DISTINCT FROM` o `IS NOT NULL` explícito.

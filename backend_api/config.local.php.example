@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+// Copiar a config.local.php en ~/oveja_negra/<env>/ (flamenco). No va a git.
+// En flamenco SELinux (Enforcing) impide a PHP-FPM usar el socket Unix de
+// Postgres; por eso se conecta por TCP a 127.0.0.1 con el password del rol
+// marco. Este archivo queda con chmod 600.
+return [
+    'env' => 'staging', // staging | prod
+    'db' => [
+        'dsn' => 'pgsql:host=127.0.0.1;dbname=gyros',
+        'user' => 'marco',
+        'password' => 'PASSWORD_DEL_ROL_MARCO',
+        'schema' => 'oveja_negra_staging', // oveja_negra en prod
+    ],
+    // Generar con: php -r 'echo bin2hex(random_bytes(48)), PHP_EOL;'  (distinto por entorno)
+    'jwt_secret' => 'CAMBIAR',
+    'media_base_url' => 'https://www.quanticasoft.com/oveja_negra/media-staging', // .../media en prod
+    'media_dir' => '/webs/quanticasoft/oveja_negra/media-staging', // .../media en prod
+];

@@ -10,7 +10,7 @@ Cada fase: analizar lo existente → proponer → **aprobación del usuario** �
 | Fase | Rama | Entregable | Validación |
 |---|---|---|---|
 | 1 | `feature/f1-arquitectura` | `docs/` (arquitectura, modelo, API, decisiones, plan), `README.md`, `CLAUDE.md` | revisión del usuario |
-| 2 | `feature/f2-db-base` | Esqueleto PHP (Core: Router, Db, Response, ErrorHandler, Validation), `/v1/health`, Docker dev, `migrate.sh`/`deploy.sh`/`backup.sh`, **todas las migraciones del modelo** + semilla de roles/permisos/unidades/categorías de gasto, `config.local.php.example`, guía de instalación y de Postgres | migraciones limpias en dev; health en dev y staging |
+| 2 | `feature/f2-db-base` | Esqueleto PHP (Core: Router, Db, Response, ErrorHandler, Validation, Money), `/v1/health`, Docker dev, `migrate.sh`/`deploy.sh`/`backup.sh`/`reset-dev.sh`, **todas las migraciones del modelo** + semilla de roles/permisos/unidades, `config.local.php.example`, runner de tests, `INSTALL.md` | migraciones limpias en dev desde cero; tests verdes; health en dev y staging |
 | 3 | `feature/f3-auth-rbac` | Login, JWT + refresh, middleware de permisos, usuarios, roles, auditoría, rate limit | tests de API por rol |
 | 3b | `feature/f3b-otp` | Login por OTP vía `otp/session.php`, copia de `otp_auth` | prueba con SMS real |
 | 4 | `feature/f4-catalogo` | Categorías, productos, precios + historial, disponibilidad, imágenes, cartilla | cambio de precio no altera pedidos |
