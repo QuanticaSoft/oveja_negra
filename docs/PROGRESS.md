@@ -1,8 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 2 (base del backend y migraciones):** lista en `feature/f2-db-base`, pendiente de PR a `develop`
-y del primer despliegue a staging (requiere confirmación del usuario).
+**Fase 3 (auth, JWT, RBAC, usuarios):** en curso en `feature/f3-auth-rbac`.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -22,8 +21,11 @@ y del primer despliegue a staging (requiere confirmación del usuario).
     Los tests detectaron un CHECK que dejaba pasar una entrada de compra sin origen (NULL); corregido.
   - `docs/INSTALL.md`, `config.local.php.example`.
 
+- 2026-11-07: Fase 2 integrada (PR #2) y **staging desplegado**: schema `gyros.oveja_negra_staging`
+  con las 6 migraciones; `/oveja_negra/api-staging/v1/health` → ok, PHP 8.2.35 `fpm-fcgi` sin
+  extensiones faltantes, `America/La_Paz`. Hobby-Store staging sigue sano y no se tocó ningún otro schema.
+  Problema encontrado: el password copiado al `config.local.php` no coincidía con el del rol `marco`
+  (lo corrigió el usuario); queda la nota en `INSTALL.md`.
+
 ## Próximo
-- PR `feature/f2-db-base` → `develop`.
-- Con OK del usuario: crear `~/oveja_negra/staging/config.local.php`, `migrate.sh staging`,
-  `deploy.sh staging` y comprobar `/oveja_negra/api-staging/v1/health` (PHP real del pool `gyros.sock`).
-- Fase 3 (auth, JWT, RBAC, usuarios, auditoría), previa aprobación.
+- Fase 3: PR `feature/f3-auth-rbac` → `develop`, deploy a staging y creación del primer ADMIN.
