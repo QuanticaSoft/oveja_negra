@@ -17,6 +17,7 @@ docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php
 - Volver a empezar desde cero: `backend_api/scripts/reset-dev.sh && backend_api/scripts/migrate.sh dev`.
 - La configuración de dev son los valores por defecto de `backend_api/config.php`; no hace falta
   `config.local.php`.
+- Primer ADMIN de dev: `docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php`.
 
 ## PostgreSQL
 
@@ -73,6 +74,12 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
    ```
    Fuera de prod, health informa la versión de PHP y las extensiones que faltan **del pool PHP-FPM
    real** (`gyros.sock`), que puede no ser el mismo PHP de la terminal.
+
+3. Crear el **primer ADMIN** (lo ejecuta una persona; la contraseña se escribe sin que se vea y
+   no queda en ningún lado). Se niega si ya existe un ADMIN; los demás usuarios se crean desde la API.
+   ```bash
+   ssh -t flamenco php ~/oveja_negra/staging/bin/create-admin.php
+   ```
 
 ### Despliegues siguientes
 `migrate.sh <env>` (si hay migraciones nuevas) y `deploy.sh <env>`. En prod ambos piden escribir

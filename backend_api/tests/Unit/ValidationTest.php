@@ -38,6 +38,26 @@ final class ValidationTest extends TestCase
         $this->assertNull(Validation::optionalText('', 20));
     }
 
+    public function testPasswordEntre8Y72Bytes(): void
+    {
+        $this->assertNull(Validation::password('1234567'));
+        $this->assertSame('12345678', Validation::password('12345678'));
+        $this->assertSame(str_repeat('a', 72), Validation::password(str_repeat('a', 72)));
+        $this->assertNull(Validation::password(str_repeat('a', 73)));
+        // "ñ" ocupa 2 bytes: 36 caben en los 72 bytes de bcrypt, 37 no.
+        $this->assertSame(str_repeat('ñ', 36), Validation::password(str_repeat('ñ', 36)));
+        $this->assertNull(Validation::password(str_repeat('ñ', 37)));
+        $this->assertNull(Validation::password(12345678));
+    }
+
+    public function testUsernameSeNormalizaAMinusculas(): void
+    {
+        $this->assertSame('ana.perez', Validation::username(' Ana.Perez '));
+        $this->assertNull(Validation::username('ab'));
+        $this->assertNull(Validation::username('ana perez'));
+        $this->assertNull(Validation::username('añá'));
+    }
+
     public function testPositiveInt(): void
     {
         $this->assertSame(5, Validation::positiveInt('5'));

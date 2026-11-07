@@ -110,9 +110,7 @@ final class SchemaTest extends DbTestCase
 
     private function createUser(): int
     {
-        return (int) $this->scalar(
-            "INSERT INTO users (username, full_name, password_hash, role_id)
-             SELECT 'test.user', 'Usuario de prueba', 'x', id FROM roles WHERE code = 'ADMIN' RETURNING id");
+        return $this->insertUser('ADMIN', 'test.user');
     }
 
     private function createOrder(int $userId): int

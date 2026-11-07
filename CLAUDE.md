@@ -58,6 +58,7 @@ docker compose -f infra/docker-compose.dev.yml up -d --build   # Postgres :5444 
 backend_api/scripts/migrate.sh dev                             # aplica sql/ pendientes
 backend_api/scripts/reset-dev.sh                               # borra el schema de dev (solo dev)
 curl localhost:8082/v1/health
+docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php   # primer ADMIN (interactivo)
 
 docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php              # todos los tests
 docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php MoneyTest    # filtra por "Clase::metodo"
@@ -71,9 +72,14 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Sin namespaces: el autoloader de `src/bootstrap.php` busca `src/Core/<Clase>.php` y
   `src/Modules/*/<Clase>.php`, así que los nombres de clase deben ser únicos.
 - Rutas en `src/routes.php` con su permiso: `$router->post('/v1/orders', [OrdersController::class, 'create'], 'orders.create')`.
-  Los controllers terminan con `Response::ok()` / lanzan `ApiException` (nunca `echo`).
+  `null` = pública; `Router::SESSION` = solo sesión. `AuthMiddleware` lo aplica y deja el usuario en `App::user()`.
+  **Toda ruta nueva de negocio debe declarar un permiso** que exista en la tabla `permissions`.
+- Capas: Controller (lee `Request`, llama al service, `Response::ok()`) → Service (recibe `PDO` y el
+  `AuthUser` actor; reglas, `Db::transaction`, `Audit::log`; lanza `ApiException`, nunca usa `Response`)
+  → Repository (SQL con parámetros). Así los services se prueban sin HTTP.
 - Dinero en PHP como **centavos `int`** (`Money`, `Validation::money`); hacia la BD con `Money::fromCents()`.
 - Tests: runner propio `backend_api/tests/run.php` (sin PHPUnit). `tests/Db/*` heredan de `DbTestCase`
-  (cada test en transacción con rollback; `assertDbRejects(SQLSTATE, sql)` para reglas de la BD).
+  (cada test en transacción con rollback; `insertUser(rol, usuario)`, `authUser(id)`,
+  `assertApiError(código, http, fn)`, `assertDbRejects(SQLSTATE, sql)`).
 - Ojo en los `CHECK` con columnas NULL: `col = 'X'` con NULL da NULL y el CHECK **pasa**; usar
   `IS NOT DISTINCT FROM` o `IS NOT NULL` explícito.
