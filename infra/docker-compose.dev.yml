@@ -1,0 +1,37 @@
+# Entorno dev local: Postgres 18 + PHP 8.2 (Apache), mismas versiones que flamenco.
+# Uso: docker compose -f infra/docker-compose.dev.yml up -d
+# Puertos 5444/8082 porque 5432-5442 y 8080 ya los usan otros proyectos locales.
+name: oveja-negra-dev
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: oveja_negra_dev
+      POSTGRES_USER: oveja
+      POSTGRES_PASSWORD: oveja
+      TZ: America/La_Paz
+    ports:
+      - "5444:5432"
+    # PG18 cambió PGDATA a /var/lib/postgresql/18/docker: se monta el directorio padre.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oveja -d oveja_negra_dev"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./php
+    environment:
+      TZ: America/La_Paz
+    ports:
+      - "8082:80"
+    volumes:
+      - ../backend_api:/var/www/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

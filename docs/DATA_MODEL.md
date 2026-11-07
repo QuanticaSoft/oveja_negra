@@ -14,8 +14,15 @@ Las migraciones (`backend_api/sql/NNN_*.sql`) **nunca nombran el schema**: `migr
 - Enumerados como `TEXT` + `CHECK (... IN (...))` (más fáciles de migrar que `ENUM`).
 - `business_date DATE`: día operativo en La Paz con corte configurable (por defecto 04:00):
   una venta a la 01:30 cuenta para el día anterior.
-- Tablas históricas (`orders`, `order_items`, `payments`, `purchases`, `purchase_items`, `expenses`,
-  `inventory_movements`, `financial_transactions`, `audit_logs`): **sin DELETE**. Se anulan por estado.
+- Tablas históricas: **sin DELETE**, garantizado por triggers en la BD (no solo en la API):
+  - `forbid_delete` (sin DELETE, se anulan por estado): `users`, `categories`, `products`, `orders`,
+    `payments`, `suppliers`, `ingredients`, `purchases`, `expense_categories`, `expenses`.
+  - `forbid_change` (solo inserción, ni UPDATE ni DELETE): `inventory_movements`,
+    `financial_transactions`, `audit_logs`, `product_price_history`, `purchase_items`.
+  - `order_items`: solo se modifican con el pedido PENDIENTE y sin pagos confirmados.
+- Las fechas que el usuario elige (`purchase_date`, `expense_date`) son las de los reportes; en
+  `financial_transactions.business_date` se copia esa fecha. `business_date` calculado por la hora
+  de corte solo existe en `orders` y `financial_transactions`.
 
 ## Diagrama entidad-relación
 
@@ -93,9 +100,9 @@ erDiagram
 | `units` | `code` (kg, g, l, ml, unidad, paquete), `name` | `code` UNIQUE |
 | `ingredient_categories` | `name` | `name` UNIQUE |
 | `ingredients` | `name`, `category_id`, `unit_id`, `current_stock`, `min_stock`, `avg_unit_cost`, `is_active` | `name` UNIQUE; `current_stock >= 0`; `min_stock >= 0` |
-| `purchases` | `purchase_date`, `business_date`, `supplier_id` NULL, `receipt_number` NULL, `payment_method`, `total`, `status` (CONFIRMADA, ANULADA), `created_by`, `voided_by`, `void_reason`, `idempotency_key` | `total >= 0`; `idempotency_key` UNIQUE |
-| `purchase_items` | `purchase_id`, `ingredient_id`, `quantity`, `unit_price`, `line_total` | `quantity > 0`; `unit_price >= 0` |
-| `inventory_movements` | `ingredient_id`, `type` (ENTRADA_COMPRA, SALIDA_CONSUMO, AJUSTE, REVERSO), `quantity` (con signo), `unit_cost`, `stock_after`, `source_type`, `source_id`, `reason`, `created_by` | UNIQUE `(source_type, source_id, type)` cuando `source_id` no es NULL; índice `(ingredient_id, created_at)` |
+| `purchases` | `purchase_date`, `supplier_id` NULL, `receipt_number` NULL, `payment_method`, `total`, `status` (CONFIRMADA, ANULADA), `created_by`, `voided_by`, `void_reason`, `idempotency_key` | `total >= 0`; `idempotency_key` UNIQUE |
+| `purchase_items` | `purchase_id`, `ingredient_id`, `quantity`, `unit_price` (Bs, 2 decimales), `line_total` | `quantity > 0`; `unit_price >= 0`; `line_total = round(quantity · unit_price, 2)` |
+| `inventory_movements` | `ingredient_id`, `type` (ENTRADA_COMPRA, SALIDA_CONSUMO, AJUSTE, REVERSO), `quantity` (con signo), `unit_cost`, `stock_after`, `source_type` (PURCHASE_ITEM, ORDER_ITEM) NULL, `source_id`, `reason`, `created_by` | UNIQUE `(source_type, source_id, type)` cuando `source_id` no es NULL; ENTRADA_COMPRA > 0 y con origen PURCHASE_ITEM; SALIDA_CONSUMO < 0; AJUSTE exige `reason`; índice `(ingredient_id, created_at)` |
 
 - Cada insumo tiene **una única unidad base**; la compra se registra en esa unidad.
 - `current_stock` es una caché de `SUM(inventory_movements.quantity)` y se actualiza en la misma
@@ -110,7 +117,7 @@ erDiagram
 | Tabla | Columnas clave | Restricciones |
 |---|---|---|
 | `expense_categories` | `name`, `is_active` | `name` UNIQUE |
-| `expenses` | `expense_date`, `business_date`, `category_id`, `description`, `amount`, `payment_method`, `status` (CONFIRMADO, ANULADO), `created_by`, `voided_by`, `void_reason`, `idempotency_key` | `amount > 0` |
+| `expenses` | `expense_date`, `category_id`, `description`, `amount`, `payment_method`, `status` (CONFIRMADO, ANULADO), `created_by`, `voided_by`, `void_reason`, `idempotency_key` | `amount > 0` |
 | `financial_transactions` | `type` (INGRESO, EGRESO), `category`, `description`, `amount`, `occurred_at`, `business_date`, `source_type` (PAYMENT, PURCHASE, EXPENSE), `source_id`, `is_reversal`, `reverses_id` NULL, `created_by` | `amount > 0`; UNIQUE `(source_type, source_id, is_reversal)`; índice `(business_date, type)` |
 
 - **Ingreso por venta** = un `INGRESO` por cada pago confirmado (soporta pagos mixtos efectivo + QR).

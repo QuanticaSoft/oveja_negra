@@ -16,7 +16,17 @@ America/La_Paz.
 - `backend_api/`: PHP 8.2 + PDO, sin composer, desplegado en flamenco (`www.quanticasoft.com`).
 - PostgreSQL 18, schemas `oveja_negra` / `oveja_negra_staging` dentro de la BD `gyros`.
 
-La instalación y el entorno de desarrollo se documentan en la Fase 2, cuando exista el código.
+## Dev local
+
+```bash
+docker compose -f infra/docker-compose.dev.yml up -d --build   # Postgres :5444 + API :8082
+backend_api/scripts/migrate.sh dev
+curl localhost:8082/v1/health
+docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php
+```
+
+Instalación completa, PostgreSQL y despliegue en flamenco: [`docs/INSTALL.md`](docs/INSTALL.md).
+Configuración de ejemplo por entorno: [`backend_api/config.local.php.example`](backend_api/config.local.php.example).
 
 ## Ramas y versiones
 - `main` = producción (solo por PR + tag `vX.Y.Z`).
