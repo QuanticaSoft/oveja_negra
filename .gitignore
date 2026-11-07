@@ -1,0 +1,23 @@
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Secretos y configuración por entorno
+.env
+.env.*
+!.env.example
+backend_api/config.local.php
+
+# Media subida y backups (nunca en git)
+backend_api/public/media/
+backups/
+
+# Flutter / Dart
+app_ovejanegra/.dart_tool/
+app_ovejanegra/build/
+app_ovejanegra/.flutter-plugins
+app_ovejanegra/.flutter-plugins-dependencies
+packages/*/.dart_tool/
+packages/*/build/
+*.iml
