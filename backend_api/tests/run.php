@@ -9,6 +9,10 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
 require __DIR__ . '/TestCase.php';
 
+// Algunos tests provocan a propósito eventos que la API registra (p. ej. reuso de refresh token).
+$logFile = sys_get_temp_dir() . '/oveja_negra_tests.log';
+ini_set('error_log', $logFile);
+
 $filter = $argv[1] ?? '';
 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__, FilesystemIterator::SKIP_DOTS));
 $testFiles = [];
@@ -52,5 +56,5 @@ foreach ($failures as [$name, $e]) {
         echo "  en {$e->getFile()}:{$e->getLine()}\n";
     }
 }
-printf("%d OK, %d fallidos\n", $passed, count($failures));
+printf("%d OK, %d fallidos (error_log de la API: %s)\n", $passed, count($failures), $logFile);
 exit($failures === [] ? 0 : 1);

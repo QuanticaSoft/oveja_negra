@@ -20,23 +20,53 @@ login, refresh y health).
 
 | Método | Ruta | Permiso | Notas |
 |---|---|---|---|
-| POST | `/v1/auth/login` | público | `{identifier (usuario o celular), password}` → `{access_token, refresh_token, user}` |
-| POST | `/v1/auth/refresh` | público | `{refresh_token}` → par nuevo (rotación) |
-| POST | `/v1/auth/logout` | sesión | revoca el refresh token |
-| GET | `/v1/auth/me` | sesión | usuario + rol + permisos |
+| POST | `/v1/auth/login` | público | `{identifier, password}`. `identifier` = usuario (sin distinguir mayúsculas) o celular `+591…` |
+| POST | `/v1/auth/refresh` | público | `{refresh_token}` → sesión nueva (rotación) |
+| POST | `/v1/auth/logout` | público | `{refresh_token}` → lo revoca. Idempotente. Público para poder cerrar sesión con el access token ya expirado |
+| GET | `/v1/auth/me` | sesión | `{id, username, full_name, role, permissions[]}` |
+| PATCH | `/v1/auth/me/password` | sesión | `{current_password, new_password}` → revoca todas las sesiones y devuelve una nueva |
 | POST | `/v1/auth/otp` | público | Fase 3b. `{otp_session_token}` → valida en `otp/session.php` y emite JWT si el celular pertenece a un usuario activo |
+
+**Sesión** (respuesta de login, refresh y cambio de contraseña):
+```json
+{"data": {"access_token": "<jwt>", "expires_in": 900, "refresh_token": "<43 caracteres>",
+          "user": {"id": 1, "username": "…", "full_name": "…", "role": "CAJERO", "permissions": ["…"]}}}
+```
+- El access token (JWT HS256, 15 min) va en `X-Auth-Token` en cada petición. El refresh token dura 7 días
+  y **es de un solo uso**: cada refresh devuelve uno nuevo.
+- **Reusar un refresh token ya usado revoca todas las sesiones del usuario** (se asume robo). La app debe
+  hacer un solo refresh a la vez y reintentar las peticiones en espera con el token nuevo.
+- Contraseñas: 8 a 72 caracteres (límite de bcrypt).
+
+| Error | HTTP | Cuándo |
+|---|---|---|
+| `INVALID_CREDENTIALS` | 401 | Usuario inexistente o contraseña incorrecta (mismo mensaje y tiempo en ambos casos) |
+| `USER_INACTIVE` | 403 en login / 401 en el resto | Cuenta desactivada |
+| `TOO_MANY_ATTEMPTS` | 429 | 5 fallos por usuario (desde su último login correcto) o 20 por IP en 15 min |
+| `INVALID_REFRESH_TOKEN` | 401 | Refresh token inexistente, expirado, revocado o reutilizado |
+| `UNAUTHENTICATED` | 401 | Falta `X-Auth-Token`, o es inválido o expiró → hacer refresh |
+| `FORBIDDEN` | 403 | El rol no tiene el permiso de la ruta |
+| `WRONG_PASSWORD` | 400 | `current_password` incorrecta |
+| `INVALID_JSON` · `PAYLOAD_TOO_LARGE` | 400 · 413 | Cuerpo que no es un objeto JSON, o de más de 64 KB |
 
 ## Usuarios y roles
 
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET / POST | `/v1/users` | `users.manage` |
-| GET / PATCH | `/v1/users/{id}` | `users.manage` |
-| PATCH | `/v1/users/{id}/status` | `users.manage` |
-| PATCH | `/v1/users/{id}/password` | `users.manage` |
-| PATCH | `/v1/auth/me/password` | sesión (contraseña actual requerida) |
-| GET | `/v1/roles` · `/v1/permissions` | `roles.manage` |
-| PUT | `/v1/roles/{id}/permissions` | `roles.manage` |
+| GET | `/v1/users?active=true\|false&role=CAJERO&page=1&per_page=20` (máx. 100) | `users.manage` |
+| POST | `/v1/users` `{username, full_name, phone?, role_code, password}` → 201 | `users.manage` |
+| GET | `/v1/users/{id}` | `users.manage` |
+| PATCH | `/v1/users/{id}` `{full_name?, phone?, role_code?}` | `users.manage` |
+| PATCH | `/v1/users/{id}/status` `{is_active}` — desactivar revoca sus sesiones | `users.manage` |
+| PATCH | `/v1/users/{id}/password` `{new_password}` — revoca sus sesiones | `users.manage` |
+| GET | `/v1/roles` (con permisos) · `/v1/permissions` | `roles.manage` |
+| PUT | `/v1/roles/{id}/permissions` `{permissions: [códigos]}` (reemplaza el conjunto) | `roles.manage` |
+
+Usuario: `{id, username, full_name, phone, role, is_active, last_login_at, created_at, updated_at}`
+(nunca incluye la contraseña ni su hash).
+Errores propios: `USERNAME_TAKEN` y `PHONE_TAKEN` (409); `CANNOT_DEACTIVATE_SELF` y
+`CANNOT_CHANGE_OWN_ROLE` (409); `LAST_ADMIN` (409, siempre debe quedar un ADMIN activo);
+`ADMIN_PERMISSIONS_REQUIRED` (409, el rol ADMIN conserva `users.manage` y `roles.manage`).
 
 ## Catálogo
 

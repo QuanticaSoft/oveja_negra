@@ -14,6 +14,30 @@ final class Validation
         return preg_match('/^\+591\d{8}$/', $phone) ? $phone : null;
     }
 
+    /** Igual que el CHECK de users.username; se normaliza a minúsculas. */
+    public static function username(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $value = strtolower(trim($value));
+        return preg_match('/^[a-z0-9._-]{3,40}$/', $value) ? $value : null;
+    }
+
+    /** 8+ caracteres y como máximo 72 bytes: bcrypt ignora lo que pase de 72. */
+    public static function password(mixed $value): ?string
+    {
+        if (!is_string($value) || mb_strlen($value) < 8 || strlen($value) > 72) {
+            return null;
+        }
+        return $value;
+    }
+
+    public static function bool(mixed $value): ?bool
+    {
+        return is_bool($value) ? $value : null;
+    }
+
     /** Texto obligatorio, con espacios normalizados y longitud máxima. */
     public static function text(mixed $value, int $maxLength): ?string
     {

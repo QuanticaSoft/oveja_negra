@@ -33,8 +33,11 @@ final class Db
         return self::$pdo = $pdo;
     }
 
+    private static int $savepointDepth = 0;
+
     /**
      * Ejecuta $work dentro de una transacción; si lanza, hace rollback y relanza.
+     * Si ya hay una transacción abierta (p. ej. un test con rollback) usa un savepoint.
      *
      * @template T
      * @param callable(PDO): T $work
@@ -43,8 +46,20 @@ final class Db
     public static function transaction(PDO $pdo, callable $work): mixed
     {
         if ($pdo->inTransaction()) {
-            throw new LogicException('Transacción anidada no soportada.');
+            $savepoint = 'sp_' . ++self::$savepointDepth;
+            $pdo->exec("SAVEPOINT {$savepoint}");
+            try {
+                $result = $work($pdo);
+                $pdo->exec("RELEASE SAVEPOINT {$savepoint}");
+                return $result;
+            } catch (Throwable $e) {
+                $pdo->exec("ROLLBACK TO SAVEPOINT {$savepoint}");
+                throw $e;
+            } finally {
+                self::$savepointDepth--;
+            }
         }
+
         $pdo->beginTransaction();
         try {
             $result = $work($pdo);

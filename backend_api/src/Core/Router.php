@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 final class Router
 {
+    /** Permiso especial: la ruta exige sesión, pero ningún permiso concreto (p. ej. /v1/auth/me). */
+    public const SESSION = '@session';
+
     /** @var list<array{method: string, pattern: string, handler: array{class-string, string}, permission: ?string}> */
     private array $routes = [];
 
     /**
-     * El permiso se declara junto a la ruta; AuthMiddleware lo hará cumplir (Fase 3).
-     * null = ruta pública.
+     * El permiso se declara junto a la ruta y lo hace cumplir AuthMiddleware.
+     * null = ruta pública; Router::SESSION = solo sesión.
      */
     public function add(string $method, string $pattern, array $handler, ?string $permission = null): void
     {

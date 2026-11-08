@@ -2,6 +2,46 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-07: Refresh tokens de un solo uso con detección de reuso
+Cada refresh revoca el token usado y emite otro (`replaced_by` los encadena). Si llega un token ya
+revocado, se revocan **todas** las sesiones del usuario y queda en `error_log`.
+**Por qué:** un token reutilizado significa que dos partes lo tienen (copia o robo); no se puede saber
+cuál es la legítima. **Consecuencia para la app (Fase 8):** un solo refresh a la vez.
+
+## 2026-11-07: Usuario y permisos se leen de la BD en cada petición
+El JWT solo lleva `sub`, `iat` y `exp`; rol y permisos no van en el token.
+**Por qué:** desactivar a alguien o quitarle un permiso rige al instante, no 15 minutos después. Cuesta
+una consulta indexada por petición.
+
+## 2026-11-07: Login sin enumeración de usuarios
+Usuario inexistente y contraseña incorrecta devuelven el mismo error, y en ambos casos se ejecuta
+`password_verify` (contra un hash ficticio si el usuario no existe), así que tardan lo mismo. "Cuenta
+desactivada" solo se informa si la contraseña es correcta.
+
+## 2026-11-07: Protecciones contra quedarse sin administrador
+- Siempre queda al menos un ADMIN activo (`LAST_ADMIN`, con `SELECT … FOR UPDATE` para que dos
+  peticiones simultáneas no se lo salten).
+- Nadie puede desactivarse ni cambiarse el rol a sí mismo.
+- El rol ADMIN conserva siempre `users.manage` y `roles.manage`.
+
+## 2026-11-07: Primer ADMIN por CLI (`bin/create-admin.php`)
+No hay endpoint de registro. El primer ADMIN se crea en el servidor con un script interactivo que pide
+la contraseña sin mostrarla, y que se niega si ya existe un ADMIN. Los demás se crean desde la API.
+**Por qué:** la contraseña del primer administrador nunca pasa por git, por el chat ni por el historial del shell.
+
+## 2026-11-07: `logout` es público
+Revoca el refresh token recibido. Tener ese token ya prueba que se es dueño de la sesión, y así la app
+puede cerrar sesión aunque su access token haya expirado.
+
+## 2026-11-07: Secreto JWT de dev fijo y rechazado fuera de dev
+`config.php` trae `App::DEV_JWT_SECRET` para que dev funcione sin configurar nada. Fuera de dev, si
+`jwt_secret` falta, tiene menos de 64 caracteres o es el de dev, la API no autentica a nadie y
+`/v1/health` muestra `auth.jwt_secret_ok: false` (HTTP 503).
+
+## 2026-11-07: `Db::transaction` anidable con savepoints
+Si ya hay una transacción abierta, usa `SAVEPOINT`. Permite que los tests corran cada caso dentro de una
+transacción con rollback, y que un service llame a otro sin romper la atomicidad.
+
 ## 2026-11-07: Tests con runner propio, sin PHPUnit
 `backend_api/tests/run.php` (decisión del usuario). Tests unitarios y de BD (`DbTestCase`, cada test
 en transacción con rollback). Corren en el contenedor dev; `deploy.sh` excluye `tests/`.

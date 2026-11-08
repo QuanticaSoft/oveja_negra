@@ -16,8 +16,16 @@ $defaults = [
     ],
     // Hora de corte del día operativo en La Paz: lo vendido antes cuenta para el día anterior.
     'business_day_cutoff' => '04:00',
-    // Se usará en la Fase 3. En staging/prod: 64+ caracteres aleatorios, solo en config.local.php.
-    'jwt_secret' => null,
+    // En staging/prod: 64+ caracteres aleatorios, solo en config.local.php. App::jwtSecret()
+    // rechaza este valor de dev fuera de dev.
+    'jwt_secret' => App::DEV_JWT_SECRET,
+    'access_token_ttl' => 900,
+    'refresh_token_ttl' => 7 * 24 * 3600,
+    'login_rate_limit' => [
+        'window_minutes' => 15,
+        'max_failures_per_identifier' => 5,
+        'max_failures_per_ip' => 20,
+    ],
     'media_base_url' => null,
     'media_dir' => __DIR__ . '/public/media',
 ];

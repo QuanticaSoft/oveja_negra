@@ -14,6 +14,7 @@ final class HealthController
             'version' => API_VERSION,
             'env' => $config['env'],
             'db' => $this->dbStatus(),
+            'auth' => ['jwt_secret_ok' => $this->jwtSecretOk()],
         ];
 
         // Fuera de prod se exponen versión y extensiones para verificar el pool PHP-FPM real
@@ -29,11 +30,21 @@ final class HealthController
             ];
         }
 
-        if (!$data['db']['ok']) {
+        if (!$data['db']['ok'] || !$data['auth']['jwt_secret_ok']) {
             $data['status'] = 'degraded';
             Response::ok($data, 503);
         }
         Response::ok($data);
+    }
+
+    private function jwtSecretOk(): bool
+    {
+        try {
+            App::jwtSecret();
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
     }
 
     private function dbStatus(): array

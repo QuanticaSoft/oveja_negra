@@ -17,6 +17,7 @@ docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php
 - Volver a empezar desde cero: `backend_api/scripts/reset-dev.sh && backend_api/scripts/migrate.sh dev`.
 - La configuración de dev son los valores por defecto de `backend_api/config.php`; no hace falta
   `config.local.php`.
+- Primer ADMIN de dev: `docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php`.
 
 ## PostgreSQL
 
@@ -51,13 +52,20 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
 ### Primera vez en un entorno
 
 1. Crear la configuración (el password del rol `marco` nunca va a git ni al chat):
+   Estos tres comandos se ejecutan **desde el Mac**, en la raíz del repo, no dentro de flamenco
+   (el `scp` copia el archivo del repo local):
    ```bash
    ssh flamenco 'mkdir -p ~/oveja_negra/staging && chmod 700 ~/oveja_negra'
    scp backend_api/config.local.php.example flamenco:oveja_negra/staging/config.local.php
-   ssh flamenco 'chmod 600 ~/oveja_negra/staging/config.local.php && vi ~/oveja_negra/staging/config.local.php'
+   ssh -t flamenco 'chmod 600 ~/oveja_negra/staging/config.local.php && vi ~/oveja_negra/staging/config.local.php'
    ```
-   Completar `db.password`, `db.schema` y `jwt_secret` (`php -r 'echo bin2hex(random_bytes(48)), PHP_EOL;'`,
-   distinto en cada entorno).
+   Completar `db.password`, `db.schema` y `jwt_secret`:
+   - El password tiene que ser **idéntico** al del rol `marco`. Lo más seguro es copiar la línea
+     `'password' => …` de `~/hobbystore/<env>/config.local.php`; así también llegan bien escapados
+     los `'` o `\` que tenga. **No cambiar el password del rol** con `\password`: lo usan gyros y Hobby-Store.
+   - `jwt_secret`: `php -r 'echo bin2hex(random_bytes(48)), PHP_EOL;'`, distinto en cada entorno.
+   - Para probar la conexión sin mostrar el password:
+     `cd ~/oveja_negra/staging && php -r 'require "src/bootstrap.php"; App::db(); echo "OK\n";'`
 2. Desde `develop` (staging) o desde el tag (prod), sin cambios pendientes:
    ```bash
    backend_api/scripts/migrate.sh staging
@@ -66,6 +74,12 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
    ```
    Fuera de prod, health informa la versión de PHP y las extensiones que faltan **del pool PHP-FPM
    real** (`gyros.sock`), que puede no ser el mismo PHP de la terminal.
+
+3. Crear el **primer ADMIN** (lo ejecuta una persona; la contraseña se escribe sin que se vea y
+   no queda en ningún lado). Se niega si ya existe un ADMIN; los demás usuarios se crean desde la API.
+   ```bash
+   ssh -t flamenco php ~/oveja_negra/staging/bin/create-admin.php
+   ```
 
 ### Despliegues siguientes
 `migrate.sh <env>` (si hay migraciones nuevas) y `deploy.sh <env>`. En prod ambos piden escribir

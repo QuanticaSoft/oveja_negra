@@ -54,6 +54,15 @@ abstract class TestCase
         $this->fail("Se esperaba {$class} y no se lanzó nada");
     }
 
+    /** Comprueba que $fn lanza un ApiException con ese código y estado HTTP. */
+    protected function assertApiError(string $errorCode, int $status, callable $fn): ApiException
+    {
+        $e = $this->assertThrows(ApiException::class, $fn);
+        $this->assertSame($errorCode, $e->errorCode, 'Código de error');
+        $this->assertSame($status, $e->status, 'Estado HTTP');
+        return $e;
+    }
+
     protected function fail(string $message): never
     {
         throw new AssertionFailed($message);
@@ -79,6 +88,24 @@ abstract class DbTestCase extends TestCase
         if ($this->db->inTransaction()) {
             $this->db->rollBack();
         }
+    }
+
+    protected const DEFAULT_PASSWORD = 'secreta123';
+    // bcrypt costo 12 tarda ~0,25 s: el hash de la contraseña por defecto se calcula una vez.
+    private static ?string $defaultHash = null;
+
+    protected function insertUser(string $roleCode, string $username, ?string $phone = null, bool $active = true): int
+    {
+        self::$defaultHash ??= Passwords::hash(self::DEFAULT_PASSWORD);
+        return (int) $this->scalar(
+            'INSERT INTO users (username, full_name, phone, role_id, password_hash, is_active)
+             SELECT ?, ?, ?, id, ?, ? FROM roles WHERE code = ? RETURNING id',
+            [$username, "Test {$username}", $phone, self::$defaultHash, $active ? 'true' : 'false', $roleCode]);
+    }
+
+    protected function authUser(int $id): AuthUser
+    {
+        return (new UserRepository($this->db))->findActiveAuthUser($id) ?? $this->fail("Usuario {$id} inactivo");
     }
 
     /** Ejecuta SQL y devuelve la primera columna de la primera fila. */
