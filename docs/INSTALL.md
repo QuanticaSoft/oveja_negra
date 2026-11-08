@@ -78,8 +78,10 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
 3. Crear el **primer ADMIN** (lo ejecuta una persona; la contraseña se escribe sin que se vea y
    no queda en ningún lado). Se niega si ya existe un ADMIN; los demás usuarios se crean desde la API.
    ```bash
-   ssh -t flamenco php ~/oveja_negra/staging/bin/create-admin.php
+   ssh -t flamenco 'php ~/oveja_negra/staging/bin/create-admin.php'
    ```
+   Las comillas simples son necesarias: sin ellas, el `~` lo expande el Mac a `/Users/mark` y flamenco
+   no encuentra el script.
 
 ### Despliegues siguientes
 `migrate.sh <env>` (si hay migraciones nuevas) y `deploy.sh <env>`. En prod ambos piden escribir

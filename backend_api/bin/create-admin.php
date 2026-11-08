@@ -6,7 +6,8 @@ declare(strict_types=1);
 // Los demás usuarios se crean desde la API. La contraseña se pide por teclado con
 // eco oculto: no queda en el historial del shell, en git ni en ningún chat.
 //   dev:     docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php
-//   staging: ssh -t flamenco php ~/oveja_negra/staging/bin/create-admin.php
+//   staging: ssh -t flamenco 'php ~/oveja_negra/staging/bin/create-admin.php'
+//            (con comillas: sin ellas el Mac expande ~ a su propio home)
 
 if (PHP_SAPI !== 'cli') {
     exit(1);
