@@ -43,6 +43,10 @@
   Problema encontrado: el comando documentado no llevaba comillas y el Mac expandía `~` a su propio
   home; corregido en `INSTALL.md` y en el script.
 
+- 2026-11-08: login del ADMIN de staging verificado (intento correcto en `auth_attempts`) y contraseña
+  cambiada con `PATCH /v1/auth/me/password` (auditada; la sesión anterior quedó revocada). Se cambió
+  porque la contraseña inicial quedó escrita en el chat: el comando de verificación usaba `read -p`,
+  que no funciona en zsh. `INSTALL.md` ahora tiene la versión para zsh. **Fase 3 cerrada.**
+
 ## Próximo
-- Que el usuario confirme el login del ADMIN de staging (`/v1/auth/me`).
-- Fase 3b (login por OTP) o Fase 4 (catálogo), según decida el usuario.
+- Fase 4 (catálogo) o Fase 3b (login por OTP), según decida el usuario.
