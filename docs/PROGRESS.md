@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 3 (auth, JWT, RBAC, usuarios):** lista en `feature/f3-auth-rbac`, pendiente de PR y de staging.
+**Fase 3 (auth, JWT, RBAC, usuarios):** integrada y en staging, con el primer ADMIN creado.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -37,7 +37,12 @@
   - `bin/create-admin.php` para el primer ADMIN; `/v1/health` informa si `jwt_secret` es válido.
   - 68 tests en verde (25 de Fase 2 + 43 nuevos) y verificación de punta a punta por HTTP en dev.
 
+- 2026-11-08: Fase 3 integrada (PR #3) y **desplegada en staging**: health `0.3.0` con
+  `jwt_secret_ok: true`; rutas protegidas responden 401 sin sesión; `bin/` no es accesible desde la web
+  (404). El usuario creó el primer ADMIN de staging (`admin`, id 1) con `create-admin.php`.
+  Problema encontrado: el comando documentado no llevaba comillas y el Mac expandía `~` a su propio
+  home; corregido en `INSTALL.md` y en el script.
+
 ## Próximo
-- PR `feature/f3-auth-rbac` → `develop`; con OK del usuario, `deploy.sh staging` y que el usuario cree
-  el primer ADMIN de staging con `create-admin.php`.
+- Que el usuario confirme el login del ADMIN de staging (`/v1/auth/me`).
 - Fase 3b (login por OTP) o Fase 4 (catálogo), según decida el usuario.
