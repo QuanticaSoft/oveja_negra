@@ -82,6 +82,20 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
    ```
    Las comillas simples son necesarias: sin ellas, el `~` lo expande el Mac a `/Users/mark` y flamenco
    no encuentra el script.
+4. Comprobar el login desde el Mac (zsh). La contraseña se escribe en el prompt de la terminal, sin que se
+   vea, y el JSON se arma con Python para no ponerla en la línea de comandos:
+   ```zsh
+   S=https://www.quanticasoft.com/oveja_negra/api-staging/v1
+   read -s "PW?Contraseña: "; echo; export PW
+   AT=$(python3 -c 'import json,os; print(json.dumps({"identifier":"admin","password":os.environ["PW"]}))' \
+     | curl -s -X POST $S/auth/login -H 'Content-Type: application/json' -d @- \
+     | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["access_token"])')
+   curl -s $S/auth/me -H "X-Auth-Token: $AT" | python3 -m json.tool | head -6
+   unset PW AT
+   ```
+   En zsh `read -p` no sirve (significa "coprocess"); se usa `read -s "VAR?Prompt: "`.
+   **Nunca escribas una contraseña en un mensaje, ticket o chat.** Si pasa, cámbiala con
+   `PATCH /v1/auth/me/password`.
 
 ### Despliegues siguientes
 `migrate.sh <env>` (si hay migraciones nuevas) y `deploy.sh <env>`. En prod ambos piden escribir
