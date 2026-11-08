@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 final class UsersService
 {
-    private const MAX_PER_PAGE = 100;
     private const FULL_NAME_ERROR = 'Requerido, máximo 120 caracteres.';
     private const PASSWORD_ERROR = 'Entre 8 y 72 caracteres.';
 
@@ -22,24 +21,12 @@ final class UsersService
     /** @return array{data: list<array>, meta: array} */
     public function list(array $query): array
     {
-        $active = match ($query['active'] ?? null) {
-            null => null,
-            'true' => true,
-            'false' => false,
-            default => throw ApiException::validation(['active' => 'Debe ser true o false.']),
-        };
+        $active = Validation::boolQuery($query['active'] ?? null, 'active');
         $role = isset($query['role']) ? strtoupper($query['role']) : null;
-        $page = Validation::positiveInt($query['page'] ?? '1') ?? throw ApiException::validation(['page' => 'Entero positivo.']);
-        $perPage = Validation::positiveInt($query['per_page'] ?? '20');
-        if ($perPage === null || $perPage > self::MAX_PER_PAGE) {
-            throw ApiException::validation(['per_page' => 'Entre 1 y ' . self::MAX_PER_PAGE . '.']);
-        }
+        $pagination = Pagination::fromQuery($query);
 
-        $result = $this->users->list($active, $role, $perPage, ($page - 1) * $perPage);
-        return [
-            'data' => $result['rows'],
-            'meta' => ['page' => $page, 'per_page' => $perPage, 'total' => $result['total']],
-        ];
+        $result = $this->users->list($active, $role, $pagination->perPage, $pagination->offset());
+        return ['data' => $result['rows'], 'meta' => $pagination->meta($result['total'])];
     }
 
     public function get(int $id): array

@@ -38,6 +38,23 @@ final class Validation
         return is_bool($value) ? $value : null;
     }
 
+    /** Filtro de query string: "true" | "false" | ausente. */
+    public static function boolQuery(?string $value, string $field): ?bool
+    {
+        return match ($value) {
+            null => null,
+            'true' => true,
+            'false' => false,
+            default => throw ApiException::validation([$field => 'Debe ser true o false.']),
+        };
+    }
+
+    /** Patrón para ILIKE con "!" como carácter de escape: %, _ y ! del usuario son literales. */
+    public static function likePattern(string $search): string
+    {
+        return '%' . strtr($search, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+    }
+
     /** Texto obligatorio, con espacios normalizados y longitud máxima. */
     public static function text(mixed $value, int $maxLength): ?string
     {

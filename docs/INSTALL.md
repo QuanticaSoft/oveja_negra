@@ -18,6 +18,8 @@ docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php
 - La configuración de dev son los valores por defecto de `backend_api/config.php`; no hace falta
   `config.local.php`.
 - Primer ADMIN de dev: `docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php`.
+- Cartilla de demo (8 productos con fotos): `backend_api/scripts/seed.sh dev`. Es idempotente.
+  Las imágenes quedan en `backend_api/public/media/` (fuera de git) y se sirven en `http://localhost:8082/media/`.
 
 ## PostgreSQL
 
@@ -96,6 +98,14 @@ Sin sudo: todo corre como `marco`. El host `flamenco` debe estar en `~/.ssh/conf
    En zsh `read -p` no sirve (significa "coprocess"); se usa `read -s "VAR?Prompt: "`.
    **Nunca escribas una contraseña en un mensaje, ticket o chat.** Si pasa, cámbiala con
    `PATCH /v1/auth/me/password`.
+
+5. Preparar la carpeta de imágenes (una vez por entorno, **antes** de subir ninguna imagen):
+   ```zsh
+   backend_api/scripts/setup-media.sh staging
+   ```
+   Crea `/webs/quanticasoft/oveja_negra/media-staging`, le aplica `chcon -t httpd_sys_rw_content_t`
+   (sin eso PHP-FPM no puede escribir; no necesita root) e instala el `.htaccess` sin listado ni
+   ejecución de scripts. En staging se puede cargar después la demo: `backend_api/scripts/seed.sh staging`.
 
 ### Despliegues siguientes
 `migrate.sh <env>` (si hay migraciones nuevas) y `deploy.sh <env>`. En prod ambos piden escribir

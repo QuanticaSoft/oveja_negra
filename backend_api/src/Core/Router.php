@@ -24,6 +24,12 @@ final class Router
         ];
     }
 
+    /** @return list<array{method: string, pattern: string, handler: array, permission: ?string}> */
+    public function routes(): array
+    {
+        return $this->routes;
+    }
+
     public function get(string $pattern, array $handler, ?string $permission = null): void
     {
         $this->add('GET', $pattern, $handler, $permission);
