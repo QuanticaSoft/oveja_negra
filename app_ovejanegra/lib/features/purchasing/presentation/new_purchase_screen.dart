@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/idempotency.dart';
-import '../../../core/utils/dates.dart';
+import '../../../core/utils/date_range.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/quantity.dart';
 import '../../../core/widgets/api_error_text.dart';
@@ -60,7 +60,8 @@ class _NewPurchaseScreenState extends ConsumerState<NewPurchaseScreen> {
   final _operation = IdempotentOperation();
   final _lines = <_Line>[];
   final _receipt = TextEditingController();
-  DateTime _date = LaPaz.now();
+  // La jornada (corte 04:00), igual que las ventas: así aparece en los reportes de "Hoy".
+  DateTime _date = DayRange.today();
   int? _supplierId;
   PaymentMethod _method = PaymentMethod.efectivo;
   bool _saving = false;
@@ -85,8 +86,8 @@ class _NewPurchaseScreenState extends ConsumerState<NewPurchaseScreen> {
   }
 
   Future<void> _pickDate() async {
-    final today = LaPaz.now();
-    final picked = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2026), lastDate: today);
+    final picked = await showDatePicker(
+        context: context, initialDate: _date, firstDate: DateTime(2026), lastDate: DayRange.calendarToday());
     if (picked != null) {
       setState(() => _date = picked);
     }

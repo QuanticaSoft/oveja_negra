@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 8d (app: finanzas, reportes y usuarios):** lista en `feature/f8d-app-finanzas-reportes`, pendiente de PR. Con ella la app cubre todas las pantallas del MVP. Backend completo (API `0.7.0`, en staging).
+**Fase 8 completa** (PR #14–#17). Prueba del usuario en su teléfono con un APK contra staging; corrección de fechas de madrugada en `fix/fechas-jornada`.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -194,7 +194,18 @@
   - Emulador propio: dashboard con datos reales de dev, idéntico al API (cobrado 25 − compras 315,25 −
     gastos 22,50 = −312,75). Ventas diarias con gráfico y días vacíos; fechas pasadas a `dd/MM/yyyy`.
 
+- 2026-11-09: Fase 8d integrada (PR #17). **Fase 8 completa.**
+- 2026-11-09: APK de release apuntando a staging (`~/Desktop/oveja_negra_apk/`, firma de debug de la plantilla).
+  El usuario lo instaló en un ZTE Blade A34 (Android 13):
+  - **"No hay conexión":** se diagnosticó por USB. El certificado de staging (Let's Encrypt YE2/ISRG X2)
+    valida en el teléfono y una prueba con la configuración de la app responde 200 en debug y en release.
+    El intento del usuario no llegó al servidor porque el WiFi del teléfono se reconectó minutos después.
+    Sin cambios de código.
+  - **"Gastos y compras no aparecen en reportes":** lo registrado de madrugada quedaba con fecha de
+    calendario, fuera de los rangos por jornada. Corregido en la app (ver `DECISIONS.md`), con tests
+    que simulan las 00:56 y las 15:00. App `0.8.4+5`.
+
 ## Próximo
-- PR `feature/f8d-app-finanzas-reportes` → `develop`. Con eso la Fase 8 queda completa.
+- PR `fix/fechas-jornada` → `develop` y APK nuevo para el usuario.
 - Propuesta: APK de prueba apuntando a staging para que el usuario lo instale en su teléfono.
   Después, Fase 9 (revisión de seguridad, validaciones y documentación).

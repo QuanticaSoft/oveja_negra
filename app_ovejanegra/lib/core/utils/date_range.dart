@@ -13,23 +13,31 @@ class DayRange {
   final String? label;
 
   /// Día operativo de hoy en La Paz: antes de las 04:00 todavía es la jornada anterior (corte del backend).
-  static DateTime today() {
-    final now = LaPaz.now().subtract(const Duration(hours: 4));
-    return DateTime(now.year, now.month, now.day);
+  /// Es la fecha por defecto de ventas, compras y gastos.
+  static DateTime today({DateTime? now}) {
+    final shifted = (now ?? LaPaz.now()).subtract(const Duration(hours: 4));
+    return DateTime(shifted.year, shifted.month, shifted.day);
   }
 
-  static DayRange todayRange() {
-    final t = today();
-    return DayRange(t, t, label: 'Hoy');
+  /// Fecha de calendario en La Paz. Entre las 00:00 y las 04:00 es un día después de [today]; el
+  /// servidor acepta compras y gastos con esta fecha, así que los rangos deben llegar hasta aquí
+  /// para no dejar fuera lo registrado de madrugada.
+  static DateTime calendarToday({DateTime? now}) {
+    final n = now ?? LaPaz.now();
+    return DateTime(n.year, n.month, n.day);
   }
 
-  static List<DayRange> presets() {
-    final t = today();
+  static DayRange todayRange({DateTime? now}) => presets(now: now).first;
+
+  static List<DayRange> presets({DateTime? now}) {
+    final t = today(now: now);
+    final last = calendarToday(now: now);
+    final yesterday = t.subtract(const Duration(days: 1));
     return [
-      DayRange(t, t, label: 'Hoy'),
-      DayRange(t.subtract(const Duration(days: 1)), t.subtract(const Duration(days: 1)), label: 'Ayer'),
-      DayRange(t.subtract(const Duration(days: 6)), t, label: 'Últimos 7 días'),
-      DayRange(DateTime(t.year, t.month, 1), t, label: 'Este mes'),
+      DayRange(t, last, label: 'Hoy'),
+      DayRange(yesterday, yesterday, label: 'Ayer'),
+      DayRange(t.subtract(const Duration(days: 6)), last, label: 'Últimos 7 días'),
+      DayRange(DateTime(t.year, t.month, 1), last, label: 'Este mes'),
     ];
   }
 
