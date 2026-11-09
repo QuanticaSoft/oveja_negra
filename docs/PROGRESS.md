@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 6 (compras, insumos e inventario):** lista en `feature/f6-compras-inventario`, pendiente de PR y de staging.
+**Fase 6 (compras, insumos e inventario):** cerrada, integrada (PR #10) y desplegada en staging con la demo de insumos.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -97,6 +97,10 @@
   - 112 tests en verde. Se verificó que los tests de costo promedio fallan si se rompe la fórmula.
   - Prueba de punta a punta por HTTP en dev.
 
+- 2026-11-08: Fase 6 integrada (PR #10) y **desplegada en staging**:
+  - Health `0.6.0`; las rutas de compras, insumos e inventario responden 401 sin sesión.
+  - Demo cargada: 6 categorías de insumo, 9 insumos y 1 proveedor. La cartilla sigue con 8 productos
+    (idempotente) y el inventario empieza sin movimientos.
+
 ## Próximo
-- PR `feature/f6-compras-inventario` → `develop` y, con OK del usuario, `deploy.sh staging` y `seed.sh staging`.
 - Fase 7 (gastos, finanzas, dashboard y reportes), previa aprobación.
