@@ -2,6 +2,15 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-09: App: gráficos con `double` solo para dibujar
+`fl_chart` trabaja con `double`. Los importes llegan como centavos `int` y se convierten solo al dibujar
+las barras y la línea; los textos y totales que ve el usuario siguen saliendo del servidor.
+
+## 2026-11-09: App: roles fijos en el formulario de usuario
+Los roles son datos sembrados (ADMIN, CAJERO, ENCARGADO) y no hay API para crearlos. Listarlos con
+detalle exige `roles.manage`, así que el formulario de usuario usa esos tres códigos. Cambiar los
+permisos del rol propio recarga la sesión (`/auth/me`) para que el menú se actualice al instante.
+
 ## 2026-11-08: App: vista de cocina con actualización cada 20 s
 El backend PHP-FPM no tiene conexión en tiempo real, así que la lista de pedidos se vuelve a pedir
 cada 20 s mientras está a la vista (y al deslizar hacia abajo). Es una consulta liviana por dispositivo.

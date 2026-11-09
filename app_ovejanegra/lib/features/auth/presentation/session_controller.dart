@@ -56,6 +56,11 @@ class SessionController extends AsyncNotifier<AuthUser?> {
     state = const AsyncData(null);
   }
 
+  /// Vuelve a leer usuario y permisos (p. ej. después de cambiar los permisos de su propio rol).
+  Future<void> reloadUser() async {
+    state = AsyncData(await ref.read(authApiProvider).me());
+  }
+
   void sessionRefreshed(Session session) => state = AsyncData(session.user);
 
   void sessionExpired() {

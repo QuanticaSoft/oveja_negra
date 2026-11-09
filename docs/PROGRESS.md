@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 8c (app: compras e inventario):** lista en `feature/f8c-app-compras-inventario`, pendiente de PR. 8a y 8b integradas (PR #14 y #15). Backend del MVP completo (API `0.7.0`, en staging).
+**Fase 8d (app: finanzas, reportes y usuarios):** lista en `feature/f8d-app-finanzas-reportes`, pendiente de PR. Con ella la app cubre todas las pantallas del MVP. Backend completo (API `0.7.0`, en staging).
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -176,5 +176,25 @@
   - Emulador propio (Medium Phone), para no interferir con el del usuario: login como ENCARGADO, menú
     con sus 6 secciones, insumos y kardex con los datos reales de dev (4,5 kg y Bs 48,50, como en la Fase 6).
 
+- 2026-11-08: Fase 8c integrada (PR #16).
+- 2026-11-09: Fase 8d (app `0.8.3+4`, sin dependencias nuevas; `fl_chart` revisado en Context7):
+  - **Dashboard:** atajos de fecha (hoy, ayer, 7 días, este mes, personalizado ≤ 92 días); caja (cobrado
+    en efectivo y QR, compras, gastos, resultado en rojo o verde); pedidos (vendido, ticket, cancelados,
+    canal, estado); top 5 y stock bajo.
+  - **Gastos:** listado, nuevo gasto con Idempotency-Key, anulación y categorías (solo ADMIN).
+  - **Reportes:** ventas diarias y mensuales (barras vendido/cobrado), compras, gastos por categoría,
+    productos más vendidos, flujo con línea del acumulado y libro financiero (`finance.read`).
+  - **Usuarios:** alta, edición, activación y restablecimiento de contraseña, con mensajes claros para
+    `LAST_ADMIN` y similares. Matriz de permisos por rol: casillas del ADMIN bloqueadas y confirmación
+    antes de guardar; si cambia el rol propio, la sesión se recarga.
+  - Se quitó la pantalla provisoria "Disponible en la parte…": ya no queda ninguna sección pendiente.
+  - Error encontrado por los tests: las etiquetas largas del menú desbordaban con letra más ancha (o
+    texto agrandado). El menú usa ahora `ListTile`, que recorta con "…".
+  - `flutter analyze` limpio y 45 tests. Se verificó que el test de la matriz falla si se quita el bloqueo.
+  - Emulador propio: dashboard con datos reales de dev, idéntico al API (cobrado 25 − compras 315,25 −
+    gastos 22,50 = −312,75). Ventas diarias con gráfico y días vacíos; fechas pasadas a `dd/MM/yyyy`.
+
 ## Próximo
-- PR `feature/f8c-app-compras-inventario` → `develop`. Después, plan de la 8d (finanzas, reportes y usuarios).
+- PR `feature/f8d-app-finanzas-reportes` → `develop`. Con eso la Fase 8 queda completa.
+- Propuesta: APK de prueba apuntando a staging para que el usuario lo instale en su teléfono.
+  Después, Fase 9 (revisión de seguridad, validaciones y documentación).
