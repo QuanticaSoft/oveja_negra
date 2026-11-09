@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 7 (gastos, finanzas, dashboard y reportes):** lista en `feature/f7-finanzas-reportes`, pendiente de PR y de staging. Con ella termina el backend del MVP.
+**Fase 7 (gastos, finanzas, dashboard y reportes):** cerrada, integrada (PR #12) y desplegada en staging. **El backend del MVP está completo** (API `0.7.0`); sigue la app Flutter.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -116,6 +116,9 @@
     que falla si las compras no se calculan netas.
   - Prueba de punta a punta por HTTP en dev.
 
+- 2026-11-08: Fase 7 integrada (PR #12) y **desplegada en staging**: health `0.7.0`; las 12 rutas de
+  gastos, finanzas, dashboard y reportes responden 401 sin sesión. Demo con 6 categorías de gasto (la
+  cartilla, los insumos y el proveedor no se duplicaron).
+
 ## Próximo
-- PR `feature/f7-finanzas-reportes` → `develop` y, con OK del usuario, `deploy.sh staging` y `seed.sh staging`.
 - Fase 8 (app Flutter), previa aprobación.
