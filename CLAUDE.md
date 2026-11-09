@@ -59,6 +59,8 @@ backend_api/scripts/migrate.sh dev                             # aplica sql/ pen
 backend_api/scripts/reset-dev.sh                               # borra el schema de dev (solo dev)
 curl localhost:8082/v1/health
 docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php   # primer ADMIN (interactivo)
+backend_api/scripts/seed.sh dev                                # cartilla de demo con fotos (nunca en prod)
+backend_api/scripts/setup-media.sh staging                     # carpeta de imágenes + chcon (una vez, con OK del usuario)
 
 docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php              # todos los tests
 docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php MoneyTest    # filtra por "Clase::metodo"
@@ -78,6 +80,11 @@ Instalación y flamenco: `docs/INSTALL.md`.
   `AuthUser` actor; reglas, `Db::transaction`, `Audit::log`; lanza `ApiException`, nunca usa `Response`)
   → Repository (SQL con parámetros). Así los services se prueban sin HTTP.
 - Dinero en PHP como **centavos `int`** (`Money`, `Validation::money`); hacia la BD con `Money::fromCents()`.
+  En las respuestas JSON los importes van como **texto** (`"25.00"`), tal cual los devuelve `NUMERIC`.
+- Imágenes: siempre por `ImageProcessor::store()` (re-codifica, sin EXIF) y URLs con `Media::url()`.
+  Las subidas van bajo `p/`; nunca borrar fuera de ese prefijo (`demo/` es la media de demo).
+- Comandos para el usuario: su Mac usa **zsh** (`read -p` no sirve; usar `read -s "VAR?Prompt: "`) y las
+  contraseñas solo se escriben en un prompt oculto, nunca en la línea de comandos ni en el chat.
 - Tests: runner propio `backend_api/tests/run.php` (sin PHPUnit). `tests/Db/*` heredan de `DbTestCase`
   (cada test en transacción con rollback; `insertUser(rol, usuario)`, `authUser(id)`,
   `assertApiError(código, http, fn)`, `assertDbRejects(SQLSTATE, sql)`).

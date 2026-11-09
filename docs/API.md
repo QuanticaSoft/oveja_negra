@@ -72,15 +72,31 @@ Errores propios: `USERNAME_TAKEN` y `PHONE_TAKEN` (409); `CANNOT_DEACTIVATE_SELF
 
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET | `/v1/menu` (cartilla: activos agrupados por categoría) | `catalog.read` |
-| GET | `/v1/categories` · `/v1/products?category_id&active&available&q` | `catalog.read` |
-| POST | `/v1/categories` · `/v1/products` | `catalog.manage` |
-| PATCH | `/v1/categories/{id}` · `/v1/products/{id}` | `catalog.manage` |
-| PATCH | `/v1/products/{id}/price` | `catalog.manage` |
-| PATCH | `/v1/products/{id}/status` | `catalog.manage` |
-| PATCH | `/v1/products/{id}/availability` | `products.availability` |
-| POST | `/v1/products/{id}/image` | `catalog.manage` |
-| GET | `/v1/products/{id}/price-history` | `catalog.manage` |
+| GET | `/v1/menu` — cartilla: categorías activas con sus productos activos, incluidos los agotados (`is_available: false`) | `catalog.read` |
+| GET | `/v1/categories?active=` | `catalog.read` |
+| POST | `/v1/categories` `{name, sort_order?}` → 201 | `catalog.manage` |
+| PATCH | `/v1/categories/{id}` `{name?, sort_order?, is_active?}` | `catalog.manage` |
+| GET | `/v1/products?category_id&active&available&q&page&per_page` (`q` busca en nombre y descripción) | `catalog.read` |
+| GET | `/v1/products/{id}` | `catalog.read` |
+| POST | `/v1/products` `{category_id, name, description?, price}` → 201 | `catalog.manage` |
+| PATCH | `/v1/products/{id}` `{category_id?, name?, description?}` (el precio **no** va aquí) | `catalog.manage` |
+| PATCH | `/v1/products/{id}/price` `{price}` → guarda historial | `catalog.manage` |
+| PATCH | `/v1/products/{id}/status` `{is_active}` | `catalog.manage` |
+| PATCH | `/v1/products/{id}/availability` `{is_available}` (agotado hoy) | `products.availability` (ADMIN y CAJERO) |
+| POST | `/v1/products/{id}/image` multipart, campo `image` (JPG/PNG/WEBP, ≤ 8 MB, ≤ 25 MP); reemplaza la anterior | `catalog.manage` |
+| GET | `/v1/products/{id}/price-history` → `[{old_price, new_price, changed_at, changed_by: {id, full_name}}]` | `catalog.manage` |
+
+Producto:
+```json
+{"id": 1, "category": {"id": 2, "name": "Hamburguesas"}, "name": "Clásica", "description": "…",
+ "price": "25.00", "image_url": "…/media/p/2026/11/ab12….jpg", "thumb_url": "…/media/p/2026/11/ab12…_t.jpg",
+ "is_active": true, "is_available": true, "created_at": "…", "updated_at": "…"}
+```
+- **Los importes son texto con 2 decimales** (`"25.00"`), nunca números JSON: así no se pierde
+  precisión. Al enviar se acepta `"25.50"`, `25.5` o `25`. El precio debe ser mayor que 0.
+- La imagen se guarda en 800 px y una miniatura de 300 px (`thumb_url`), siempre como JPEG nuevo, sin EXIF.
+- Errores: `CATEGORY_NAME_TAKEN` · `PRODUCT_NAME_TAKEN` (409, sin distinguir mayúsculas; el mismo nombre
+  en otra categoría sí vale) · `CATEGORY_INACTIVE` (409) · `UNSUPPORTED_IMAGE` (415) · `IMAGE_TOO_LARGE` (413).
 
 ## Pedidos y pagos
 

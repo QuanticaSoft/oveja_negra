@@ -2,6 +2,36 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: Imágenes: código propio y siempre re-codificadas
+`ImageProcessor` (escrito para este proyecto, sin reutilizar código de Hobby-Store por pedido del
+usuario) valida el tipo real, decodifica con GD y escribe un JPEG nuevo en 800 px y 300 px. Así un
+archivo disfrazado no sobrevive y se borran los metadatos EXIF, incluido el GPS. La BD guarda solo
+`image_path`: la miniatura se deriva con el sufijo `_t`, sin columna nueva. Al reemplazar una imagen
+se borra la anterior (una imagen no es un dato histórico), pero solo bajo `p/`: la media de demo
+(`demo/`) nunca se borra desde la API.
+
+## 2026-11-08: Carpeta de media con tipo SELinux de escritura
+`/webs/quanticasoft/oveja_negra/media(-staging)` necesita `chcon -t httpd_sys_rw_content_t` antes de
+escribir nada: la carpeta padre es `httpd_sys_content_t`, de solo lectura para PHP-FPM. Lo hace
+`scripts/setup-media.sh`, que además instala un `.htaccess` sin listado y sin ejecución de scripts.
+
+## 2026-11-08: Importes como texto en JSON
+La API devuelve `"25.00"` (como lo entrega `NUMERIC`), no `25`. Un número JSON lo leería la app como
+`double` y podría redondear mal al sumar.
+
+## 2026-11-08: Precio de venta mayor que 0 y separado de la edición
+La API rechaza precio 0 (casi seguro un error de carga; la BD lo admite). El precio solo cambia con
+`PATCH /products/{id}/price`, que guarda el historial; `PATCH /products/{id}` lo rechaza.
+
+## 2026-11-08: Cartilla de demo con fotos libres
+`seeds/demo.sql` + `seeds/media/` (8 fotos de Wikimedia Commons, todas CC0 o dominio público, sin
+marcas visibles; ver `seeds/media/CREDITS.md`). El repo es público, por eso solo licencias libres.
+`seed.sh` se niega a correr en prod. Las categorías y productos reales los carga el usuario.
+
+## 2026-11-08: `ErrorHandler` respeta `@`
+Solo convierte en excepción los errores que `error_reporting()` incluye. GD emite warnings al leer
+archivos inválidos y esos casos ya se manejan devolviendo 415.
+
 ## 2026-11-07: Refresh tokens de un solo uso con detección de reuso
 Cada refresh revoca el token usado y emite otro (`replaced_by` los encadena). Si llega un token ya
 revocado, se revocan **todas** las sesiones del usuario y queda en `error_log`.

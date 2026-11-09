@@ -32,6 +32,15 @@ schema_for_env() {
   esac
 }
 
+# Fuera de public/ de la API: deploy.sh hace rsync --delete y la borraría.
+media_dir_for_env() {
+  case "$1" in
+    staging) echo "$REMOTE_WEB_BASE/media-staging" ;;
+    prod)    echo "$REMOTE_WEB_BASE/media" ;;
+    *) echo "Entorno sin media remota: $1" >&2; exit 1 ;;
+  esac
+}
+
 # staging solo desde develop; prod solo desde un tag vX.Y.Z contenido en main.
 require_git_ref_for_env() {
   local env="$1"

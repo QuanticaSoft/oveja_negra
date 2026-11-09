@@ -8,6 +8,10 @@ final class ErrorHandler
     {
         // Un warning a mitad de una operación no debe dejar datos a medias: se trata como excepción.
         set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+            // Respeta "@": GD avisa con warnings al leer archivos inválidos y eso se maneja aparte.
+            if (!(error_reporting() & $severity)) {
+                return false;
+            }
             throw new ErrorException($message, 0, $severity, $file, $line);
         });
 

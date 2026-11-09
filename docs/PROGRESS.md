@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 3 (auth, JWT, RBAC, usuarios):** integrada y en staging, con el primer ADMIN creado.
+**Fase 4 (catálogo y cartilla):** lista en `feature/f4-catalogo`, pendiente de PR y de staging.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -48,5 +48,18 @@
   porque la contraseña inicial quedó escrita en el chat: el comando de verificación usaba `read -p`,
   que no funciona en zsh. `INSTALL.md` ahora tiene la versión para zsh. **Fase 3 cerrada.**
 
+- 2026-11-08: Fase 4 (API `0.4.0`):
+  - Categorías y productos con nombres únicos, categorías inactivas protegidas y nada se borra.
+  - Cambio de precio con `product_price_history` y auditoría; un test confirma que **no altera
+    `order_items`**.
+  - Disponibilidad ("agotado") la puede marcar el CAJERO; cartilla `GET /v1/menu`.
+  - Imágenes con `ImageProcessor` propio: re-codificadas en 800 y 300 px, sin EXIF, con una carpeta
+    de media que no ejecuta scripts.
+  - Cartilla de demo con 8 fotos CC0 o de dominio público (`seeds/`).
+  - Test que obliga a cada ruta a declarar un permiso existente.
+  - 83 tests en verde y prueba de punta a punta por HTTP en dev.
+
 ## Próximo
-- Fase 4 (catálogo) o Fase 3b (login por OTP), según decida el usuario.
+- PR `feature/f4-catalogo` → `develop`. Con OK del usuario: `setup-media.sh staging`, `deploy.sh staging`
+  y, si lo quiere, `seed.sh staging`.
+- Fase 5 (ventas y pedidos), previa aprobación.
