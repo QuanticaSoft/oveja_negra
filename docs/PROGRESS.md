@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 5 (ventas y pedidos):** lista en `feature/f5-ventas`, pendiente de PR y de staging.
+**Fase 5 (ventas y pedidos):** cerrada, integrada (PR #8) y desplegada en staging.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -82,6 +82,9 @@
   - Dos tests anteriores insertaban el pedido #1 de una fecha fija y chocaban con los pedidos reales de
     dev; ahora usan fechas que nunca son reales.
 
+- 2026-11-08: Fase 5 integrada (PR #8) y **desplegada en staging**: health `0.5.0`, las rutas de pedidos
+  y pagos responden 401 sin sesión y DELETE da 405. El flujo con sesión en staging lo prueba el usuario
+  (solo él tiene la contraseña del ADMIN).
+
 ## Próximo
-- PR `feature/f5-ventas` → `develop` y, con OK del usuario, `deploy.sh staging` (no hay migraciones).
 - Fase 6 (compras, insumos e inventario), previa aprobación.
