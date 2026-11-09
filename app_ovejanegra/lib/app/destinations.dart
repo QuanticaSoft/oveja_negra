@@ -18,10 +18,10 @@ class Destination {
 
 const destinations = <Destination>[
   Destination('/dashboard', 'Dashboard', Icons.space_dashboard_outlined, 'dashboard.read', part: '8d'),
-  Destination('/sales/new', 'Nueva venta', Icons.point_of_sale_outlined, 'orders.create', part: '8b'),
-  Destination('/orders', 'Pedidos', Icons.receipt_long_outlined, 'orders.read', part: '8b'),
-  Destination('/menu', 'Cartilla', Icons.lunch_dining_outlined, 'catalog.read', part: '8b'),
-  Destination('/products', 'Productos', Icons.inventory_2_outlined, 'catalog.manage', part: '8b'),
+  Destination('/sales/new', 'Nueva venta', Icons.point_of_sale_outlined, 'orders.create'),
+  Destination('/orders', 'Pedidos', Icons.receipt_long_outlined, 'orders.read'),
+  Destination('/menu', 'Cartilla', Icons.lunch_dining_outlined, 'catalog.read'),
+  Destination('/products', 'Productos', Icons.inventory_2_outlined, 'catalog.manage'),
   Destination('/purchases', 'Compras', Icons.shopping_cart_outlined, 'purchases.read', part: '8c'),
   Destination('/inventory', 'Insumos e inventario', Icons.kitchen_outlined, 'ingredients.read', part: '8c'),
   Destination('/expenses', 'Gastos', Icons.payments_outlined, 'expenses.read', part: '8d'),

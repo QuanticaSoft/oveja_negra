@@ -18,3 +18,26 @@ class IdempotencyKey {
         '${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 }
+
+/// Clave para una operación concreta: mientras el contenido a enviar no cambie, se reutiliza la
+/// misma clave (reintentos, doble toque); si el contenido cambia, es otra operación y lleva otra
+/// clave (el servidor rechazaría la misma clave con otro contenido con 409 IDEMPOTENCY_KEY_REUSED).
+class IdempotentOperation {
+  String? _fingerprint;
+  String? _key;
+
+  String keyFor(Object body) {
+    final fingerprint = body.toString();
+    if (fingerprint != _fingerprint || _key == null) {
+      _fingerprint = fingerprint;
+      _key = IdempotencyKey.generate();
+    }
+    return _key!;
+  }
+
+  /// Después de un éxito: la próxima operación, aunque sea idéntica, es otra venta.
+  void done() {
+    _fingerprint = null;
+    _key = null;
+  }
+}
