@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 4 (catálogo y cartilla):** lista en `feature/f4-catalogo`, pendiente de PR y de staging.
+**Fase 4 (catálogo y cartilla):** cerrada, integrada (PR #6) y desplegada en staging con la cartilla de demo.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -59,7 +59,13 @@
   - Test que obliga a cada ruta a declarar un permiso existente.
   - 83 tests en verde y prueba de punta a punta por HTTP en dev.
 
+- 2026-11-08: Fase 4 integrada (PR #6) y **desplegada en staging**:
+  - `setup-media.sh staging` dejó `media-staging` con contexto `httpd_sys_rw_content_t`.
+  - Health `0.4.0` y `/v1/menu` sin sesión → 401.
+  - Demo cargada (3 categorías, 8 productos con foto); las fotos se sirven como `image/jpeg`.
+  - `.htaccess` y un `.php` en media → 403.
+  - Pedir la carpeta sin archivo no lista nada: el servidor redirige al login de gyros, por su
+    `ErrorDocument 403` global, que no es nuestro.
+
 ## Próximo
-- PR `feature/f4-catalogo` → `develop`. Con OK del usuario: `setup-media.sh staging`, `deploy.sh staging`
-  y, si lo quiere, `seed.sh staging`.
 - Fase 5 (ventas y pedidos), previa aprobación.
