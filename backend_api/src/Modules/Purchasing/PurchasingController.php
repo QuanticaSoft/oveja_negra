@@ -22,7 +22,7 @@ final class PurchasingController
 
     public function purchases(): never
     {
-        $result = $this->purchasesService()->list(self::query(['from', 'to', 'supplier_id', 'status', 'page', 'per_page']));
+        $result = $this->purchasesService()->list(QueryParams::only(['from', 'to', 'supplier_id', 'status', 'page', 'per_page']));
         Response::ok($result['data'], 200, $result['meta']);
     }
 
@@ -51,19 +51,6 @@ final class PurchasingController
     private function purchasesService(): PurchasesService
     {
         return new PurchasesService(App::db(), App::user(), App::config()['business_day_cutoff']);
-    }
-
-    /** @param list<string> $names */
-    private static function query(array $names): array
-    {
-        $query = [];
-        foreach ($names as $name) {
-            $value = Request::query($name);
-            if ($value !== null) {
-                $query[$name] = $value;
-            }
-        }
-        return $query;
     }
 
     private static function purchaseId(string $id): int

@@ -1,4 +1,4 @@
--- Cartilla, insumos y proveedor de demostración (solo dev y staging; seed.sh se niega a cargarlos en prod).
+-- Cartilla, insumos, proveedor y categorías de gasto de demostración (solo dev y staging; seed.sh se niega a cargarlos en prod).
 -- Idempotente: si una categoría o producto ya existe (mismo nombre), no se toca.
 -- Las fotos son de seeds/media/ (ver seeds/media/CREDITS.md).
 
@@ -48,4 +48,9 @@ ON CONFLICT ((lower(name))) DO NOTHING;
 
 INSERT INTO suppliers (name, phone, notes) VALUES
     ('Distribuidora de demostración', '+59170000001', 'Proveedor ficticio para pruebas.')
+ON CONFLICT ((lower(name))) DO NOTHING;
+
+-- Categorías de gasto de demostración (Fase 7). En producción el ADMIN crea las suyas.
+INSERT INTO expense_categories (name) VALUES
+    ('Alquiler'), ('Servicios básicos'), ('Sueldos'), ('Gas'), ('Mantenimiento'), ('Otros')
 ON CONFLICT ((lower(name))) DO NOTHING;

@@ -2,6 +2,23 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: "Vendido" y "cobrado" son cifras distintas
+`sold` = pedidos no cancelados por `orders.business_date`; `collected` = cobros netos del libro por el día
+en que entró el dinero. El resultado operativo usa "cobrado", porque es lo que cuadra con la caja.
+(Aprobado por el usuario.)
+
+## 2026-11-08: Anular un gasto revierte en la fecha del gasto
+Igual que las compras: anular corrige la carga de ese día. (Aprobado por el usuario.)
+
+## 2026-11-08: Categorías de gasto solo en la demo
+`seeds/demo.sql` trae Alquiler, Servicios básicos, Sueldos, Gas, Mantenimiento y Otros. En producción el
+ADMIN crea las suyas; no hay una migración con datos supuestos. (Aprobado por el usuario.)
+
+## 2026-11-08: Totales netos y cuadre verificable
+El resumen calcula todo en SQL desde `financial_transactions` con el importe con signo (`INGRESO +`,
+`EGRESO −`). Así lo cancelado y lo anulado suman 0, y `resultado = cobrado − compras − gastos` es
+exactamente la suma del libro. Hay un test que lo comprueba.
+
 ## 2026-11-08: Anular una compra revierte en la fecha de la compra
 El reverso del `EGRESO` usa `purchase_date`, no el día de la anulación. **Por qué:** anular una compra
 suele corregir un error de carga, y los reportes de ese día deben quedar como si no hubiera existido. Los

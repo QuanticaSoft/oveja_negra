@@ -21,7 +21,7 @@ final class InventoryController
 
     public function index(): never
     {
-        $result = $this->ingredients()->list(self::query(['category_id', 'active', 'low_stock', 'q', 'page', 'per_page']));
+        $result = $this->ingredients()->list(QueryParams::only(['category_id', 'active', 'low_stock', 'q', 'page', 'per_page']));
         Response::ok($result['data'], 200, $result['meta']);
     }
 
@@ -47,7 +47,7 @@ final class InventoryController
 
     public function movements(): never
     {
-        $result = $this->inventory()->movements(self::query(['ingredient_id', 'type', 'from', 'to', 'page', 'per_page']));
+        $result = $this->inventory()->movements(QueryParams::only(['ingredient_id', 'type', 'from', 'to', 'page', 'per_page']));
         Response::ok($result['data'], 200, $result['meta']);
     }
 
@@ -69,19 +69,6 @@ final class InventoryController
     private function inventory(): InventoryService
     {
         return new InventoryService(App::db(), App::user(), App::config()['business_day_cutoff']);
-    }
-
-    /** @param list<string> $names */
-    private static function query(array $names): array
-    {
-        $query = [];
-        foreach ($names as $name) {
-            $value = Request::query($name);
-            if ($value !== null) {
-                $query[$name] = $value;
-            }
-        }
-        return $query;
     }
 
     private static function ingredientId(string $id): int

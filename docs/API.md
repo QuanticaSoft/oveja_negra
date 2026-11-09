@@ -245,21 +245,70 @@ Por defecto, ENCARGADO y ADMIN tienen todos estos permisos; CAJERO, ninguno.
 
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET / POST | `/v1/expense-categories` · PATCH `/{id}` | `expenses.read` / `expense_categories.manage` |
-| POST | `/v1/expenses` (Idempotency-Key) | `expenses.create` |
-| GET | `/v1/expenses?from&to&category_id` | `expenses.read` |
+| GET | `/v1/expense-categories?active` | `expenses.read` |
+| POST | `/v1/expense-categories` `{name}` → 201 | `expense_categories.manage` (solo ADMIN) |
+| PATCH | `/v1/expense-categories/{id}` `{name?, is_active?}` | `expense_categories.manage` |
+| POST | `/v1/expenses` (Idempotency-Key) → 201, o 200 si es un reintento | `expenses.create` |
+| GET | `/v1/expenses?from&to&category_id&status&page&per_page` (por defecto, los últimos 30 días) | `expenses.read` |
 | POST | `/v1/expenses/{id}/void` `{reason}` | `expenses.void` |
-| GET | `/v1/finance/transactions?from&to&type&category` | `finance.read` |
-| GET | `/v1/finance/summary?from&to` → ventas, compras, otros gastos, resultado operativo | `finance.read` |
+| GET | `/v1/finance/transactions?from&to&type&category&page&per_page` (por defecto, hoy) | `finance.read` |
+| GET | `/v1/finance/summary?from&to` (por defecto, hoy) | `finance.read` |
+
+**Gasto:** `{expense_date, category_id, description, amount, payment_method}`.
+- `expense_date` es cualquier fecha pasada, nunca futura. `amount` debe ser mayor que 0 y la categoría
+  estar activa (409 `EXPENSE_CATEGORY_INACTIVE`).
+- Genera un `EGRESO` (`GASTO_OPERATIVO`) con `business_date = expense_date`. Al anularlo, el reverso va
+  en la **misma fecha** (409 `EXPENSE_ALREADY_VOIDED` si ya estaba anulado).
+- Respuesta: `{id, expense_date, category: {id, name}, description, amount, payment_method, status,
+  created_by, voided: null | {by, at, reason}, created_at, updated_at}`.
+- `Idempotency-Key`: si la misma clave llega con otra fecha, categoría, descripción, importe o forma de
+  pago, o de otro usuario, responde 409 `IDEMPOTENCY_KEY_REUSED`.
+- Error propio: `EXPENSE_CATEGORY_NAME_TAKEN` (409).
+
+**Libro:** `{id, type, category, description, amount, business_date, occurred_at, source: {type, id},
+is_reversal, reverses_id, created_by}`. `category` puede ser `VENTA`, `COMPRA_INSUMOS` o `GASTO_OPERATIVO`.
+
+**Resumen (cuadre):** todos los totales son **netos de reversos**.
+```json
+{"from": "2026-11-08", "to": "2026-11-08",
+ "sales_collected": {"total": "51.00", "cash": "30.00", "qr": "21.00"},
+ "purchases": "100.00",
+ "expenses": {"total": "15.00", "by_category": [{"category": {"id": 1, "name": "Gas"}, "total": "15.00"}]},
+ "operating_result": "-64.00"}
+```
+`operating_result = sales_collected.total − purchases − expenses.total`, y es exactamente la suma con signo
+del libro en el período.
 
 ## Dashboard y reportes
 
+Hay **dos cifras de venta** con nombre propio:
+- **`sold` (vendido):** total de los pedidos no cancelados, por el día operativo del pedido.
+- **`collected` (cobrado):** dinero que entró según el libro, por el día en que se cobró.
+
+Difieren cuando un pedido se paga otro día o queda pendiente. El resultado operativo usa "cobrado",
+porque es lo que cuadra con la caja.
+
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET | `/v1/dashboard?from&to` → ventas, compras, gastos, resultado, n.º pedidos, top productos, stock bajo | `dashboard.read` |
+| GET | `/v1/dashboard?from&to` (por defecto, hoy) | `dashboard.read` |
 | GET | `/v1/reports/sales/daily?from&to` | `reports.read` |
-| GET | `/v1/reports/sales/monthly?year` | `reports.read` |
+| GET | `/v1/reports/sales/monthly?year` (por defecto, el año actual) | `reports.read` |
 | GET | `/v1/reports/purchases?from&to` | `reports.read` |
 | GET | `/v1/reports/expenses/by-category?from&to` | `reports.read` |
-| GET | `/v1/reports/products/top?from&to&limit` | `reports.read` |
+| GET | `/v1/reports/products/top?from&to&limit` (`limit` de 1 a 50, por defecto 10) | `reports.read` |
 | GET | `/v1/reports/finance/movements?from&to` | `reports.read` |
+
+Los reportes cubren por defecto los últimos 30 días; el máximo es de 92 días.
+
+- **Dashboard:** `{from, to, finance: <resumen>, orders: {count, sold, average_ticket, cancelled,
+  by_channel: [{channel, orders, sold}], by_status: {PENDIENTE: n, …}}, top_products (5),
+  low_stock: {count, ingredients (hasta 10): [{id, name, unit, current_stock, min_stock}]}}`.
+- **Ventas diarias y mensuales:** un renglón por día o por mes, **incluidos los que no tienen movimiento**:
+  `{date | month, orders, sold, cancelled, collected, cash, qr}`.
+- **Compras:** solo las confirmadas: `{purchases, total, by_supplier: [{supplier: null | {id, name},
+  purchases, total}], by_ingredient: [{ingredient: {id, name, unit}, quantity, total, average_unit_price}]}`.
+- **Gastos por categoría:** solo los confirmados: `{total, categories: [{category, expenses, total}]}`.
+- **Productos más vendidos:** `[{product: {id, name}, quantity, total}]`, de pedidos no cancelados. El
+  `total` es antes del descuento del pedido.
+- **Flujo financiero:** `{days: [{date, income, outcome, net, cumulative}]}`, con todos los movimientos del
+  libro, reversos incluidos. Una operación anulada el mismo día deja neto 0.
