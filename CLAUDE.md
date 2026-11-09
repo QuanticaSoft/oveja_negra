@@ -77,7 +77,9 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Riverpod 3 **sin generación de código** (`Notifier`/`AsyncNotifier` y providers a mano).
 - Toda llamada al API pasa por `apiCall()` y lanza `ApiException` (con `details` por campo); las que
   requieren sesión usan `apiDioProvider`. Nunca leer ni escribir tokens fuera de `TokenStore`.
-- Dinero en centavos `int` con `Money` (nunca `double`); hacia el API, `Money.toApi()`.
+- Dinero en centavos `int` con `Money` (nunca `double`); hacia el API, `Money.toApi()`. Cantidades de
+  insumo en milésimas `int` con `Quantity` (`lineTotalCents` redondea igual que Postgres).
+- Pantallas de detalle: rutas anidadas (`/inventory/:id/edit`); el shell muestra "volver" al nivel anterior.
 - Cada creación (pedido, pago, compra, gasto) genera su `IdempotencyKey` una vez y la reutiliza en reintentos.
 - Lo que se muestra depende de `user.can('permiso')`, nunca del nombre del rol. Una sección nueva se
   agrega en `app/destinations.dart` con su permiso.

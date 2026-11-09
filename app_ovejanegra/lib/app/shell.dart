@@ -46,8 +46,19 @@ class AppShell extends ConsumerWidget {
       );
     }
 
+    // En un detalle (/orders/5, /inventory/3/edit…) la barra muestra "volver" al nivel anterior.
+    final isSubpage = current != null && location != current.path;
     final body = Scaffold(
-      appBar: AppBar(title: Text(title), automaticallyImplyLeading: !wide),
+      appBar: AppBar(
+        title: Text(title),
+        automaticallyImplyLeading: !wide && !isSubpage,
+        leading: isSubpage
+            ? BackButton(
+                key: const Key('shell.back'),
+                onPressed: () => context.go(location.substring(0, location.lastIndexOf('/'))),
+              )
+            : null,
+      ),
       drawer: wide ? null : menu(closeOnTap: true),
       body: SafeArea(child: child),
     );

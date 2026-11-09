@@ -135,3 +135,40 @@ Map<String, dynamic> paymentJson(int id, String method, String amount) => {
       'created_at': '2026-11-08T21:31:00-04:00',
       'voided': null,
     };
+
+Map<String, dynamic> ingredientJson(int id, String name, {String stock = '1.500', String min = '2.000', String unit = 'kg', bool low = true}) => {
+      'id': id,
+      'name': name,
+      'category': {'id': 1, 'name': 'Carnes'},
+      'unit': {'id': 1, 'code': unit, 'name': 'Kilogramo'},
+      'current_stock': stock,
+      'min_stock': min,
+      'avg_unit_cost': '48.5000',
+      'is_low_stock': low,
+      'is_active': true,
+      'created_at': '2026-11-08T10:00:00-04:00',
+      'updated_at': '2026-11-08T10:00:00-04:00',
+    };
+
+Map<String, dynamic> purchaseJson({int id = 9, String status = 'CONFIRMADA'}) => {
+      'id': id,
+      'purchase_date': '2026-11-08',
+      'supplier': null,
+      'receipt_number': null,
+      'payment_method': 'EFECTIVO',
+      'items': [
+        {
+          'id': 1,
+          'ingredient': {'id': 3, 'name': 'Carne molida', 'unit': 'kg'},
+          'quantity': '2.500',
+          'unit_price': '48.50',
+          'line_total': '121.25',
+        },
+      ],
+      'total': '121.25',
+      'status': status,
+      'created_by': {'id': 8, 'full_name': 'Encargado'},
+      'voided': null,
+      'created_at': '2026-11-08T10:00:00-04:00',
+      'updated_at': '2026-11-08T10:00:00-04:00',
+    };

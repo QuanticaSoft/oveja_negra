@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 8b (app: ventas):** lista en `feature/f8b-app-ventas`, pendiente de PR. 8a integrada (PR #14). Backend del MVP completo (API `0.7.0`, en staging).
+**Fase 8c (app: compras e inventario):** lista en `feature/f8c-app-compras-inventario`, pendiente de PR. 8a y 8b integradas (PR #14 y #15). Backend del MVP completo (API `0.7.0`, en staging).
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -158,5 +158,23 @@
     - Los controladores de texto podían crearse durante el `dispose`.
   - Emulador: la app abre en Nueva venta con la cartilla y las fotos de la demo, servidas por el API de dev.
 
+- 2026-11-08: Fase 8b integrada (PR #15).
+- 2026-11-08: Fase 8c (app `0.8.2+3`, sin dependencias nuevas):
+  - **Compras:**
+    - Listado de los últimos 30 días, detalle y anulación con motivo. Si lo comprado ya se usó, el 409
+      se muestra legible ("hay 0,5 kg, se necesitan 2,5 kg") y sugiere registrar un ajuste.
+    - Nueva compra: fecha de la boleta (no futura), proveedor, comprobante y forma de pago.
+    - Las líneas eligen el insumo con un buscador; el total se calcula como el backend y la compra
+      lleva Idempotency-Key.
+  - **Proveedores** (pestaña visible solo con `suppliers.manage`).
+  - **Insumos:** lista con stock, mínimo, costo promedio, marca de stock bajo y filtro. Detalle con kardex,
+    ajuste (sumar o restar, con motivo), edición y activación. Alta con creación de categoría.
+  - **Movimientos:** kardex general por tipo. **Consumo:** varios insumos en una sola operación.
+  - `Quantity` en milésimas, espejo del backend. Flecha de "volver" en las pantallas de detalle.
+  - `flutter analyze` limpio y 38 tests. Se verificó que el test del redondeo de la línea falla sin
+    el redondeo de Postgres.
+  - Emulador propio (Medium Phone), para no interferir con el del usuario: login como ENCARGADO, menú
+    con sus 6 secciones, insumos y kardex con los datos reales de dev (4,5 kg y Bs 48,50, como en la Fase 6).
+
 ## Próximo
-- PR `feature/f8b-app-ventas` → `develop`. Después, plan de la 8c (compras e inventario) para aprobar.
+- PR `feature/f8c-app-compras-inventario` → `develop`. Después, plan de la 8d (finanzas, reportes y usuarios).

@@ -11,6 +11,13 @@ import '../features/catalog/presentation/menu_screen.dart';
 import '../features/catalog/presentation/product_form_screen.dart';
 import '../features/catalog/presentation/products_screen.dart';
 import '../features/home/presentation/coming_soon_screen.dart';
+import '../features/inventory/presentation/consumption_screen.dart';
+import '../features/inventory/presentation/ingredient_detail_screen.dart';
+import '../features/inventory/presentation/ingredient_form_screen.dart';
+import '../features/inventory/presentation/inventory_screen.dart';
+import '../features/purchasing/presentation/new_purchase_screen.dart';
+import '../features/purchasing/presentation/purchase_detail_screen.dart';
+import '../features/purchasing/presentation/purchases_screen.dart';
 import '../features/orders/presentation/edit_items_screen.dart';
 import '../features/orders/presentation/new_sale_screen.dart';
 import '../features/orders/presentation/order_detail_screen.dart';
@@ -55,6 +62,27 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(path: 'new', builder: (_, _) => const ProductFormScreen()),
               GoRoute(path: ':id', builder: (_, state) => ProductFormScreen(productId: _id(state))),
+            ],
+          ),
+          GoRoute(
+            path: '/purchases',
+            builder: (_, _) => const PurchasesScreen(),
+            routes: [
+              GoRoute(path: 'new', builder: (_, _) => const NewPurchaseScreen()),
+              GoRoute(path: ':id', builder: (_, state) => PurchaseDetailScreen(purchaseId: _id(state))),
+            ],
+          ),
+          GoRoute(
+            path: '/inventory',
+            builder: (_, _) => const InventoryScreen(),
+            routes: [
+              GoRoute(path: 'new', builder: (_, _) => const IngredientFormScreen()),
+              GoRoute(path: 'consume', builder: (_, _) => const ConsumptionScreen()),
+              GoRoute(
+                path: ':id',
+                builder: (_, state) => IngredientDetailScreen(ingredientId: _id(state)),
+                routes: [GoRoute(path: 'edit', builder: (_, state) => IngredientFormScreen(ingredientId: _id(state)))],
+              ),
             ],
           ),
           for (final destination in destinations.where((d) => d.part != null))
