@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/idempotency.dart';
-import '../../../core/utils/dates.dart';
+import '../../../core/utils/date_range.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/api_error_text.dart';
 import '../../../core/widgets/async_view.dart';
@@ -27,7 +27,8 @@ class _NewExpenseScreenState extends ConsumerState<NewExpenseScreen> {
   final _operation = IdempotentOperation();
   final _description = TextEditingController();
   final _amount = TextEditingController();
-  DateTime _date = LaPaz.now();
+  // La jornada (corte 04:00), igual que las ventas: así aparece en los reportes de "Hoy".
+  DateTime _date = DayRange.today();
   int? _categoryId;
   PaymentMethod _method = PaymentMethod.efectivo;
   bool _saving = false;
@@ -83,7 +84,7 @@ class _NewExpenseScreenState extends ConsumerState<NewExpenseScreen> {
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: () async {
-            final picked = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2026), lastDate: LaPaz.now());
+            final picked = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2026), lastDate: DayRange.calendarToday());
             if (picked != null) {
               setState(() => _date = picked);
             }
