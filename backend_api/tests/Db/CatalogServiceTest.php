@@ -72,7 +72,7 @@ final class CatalogServiceTest extends DbTestCase
         $product = $this->product('Doble Test', '30.00');
         $orderId = (int) $this->scalar(
             "INSERT INTO orders (business_date, daily_number, channel, subtotal, total, created_by)
-             VALUES ('2026-11-08', 1, 'LOCAL', '30.00', '30.00', ?) RETURNING id", [$this->admin->id]);
+             VALUES ('2000-01-01', (SELECT COALESCE(max(daily_number), 0) + 1 FROM orders WHERE business_date = '2000-01-01'), 'LOCAL', '30.00', '30.00', ?) RETURNING id", [$this->admin->id]);
         $this->db->prepare(
             "INSERT INTO order_items (order_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total)
              VALUES (?, ?, 'Doble Test', '30.00', 1, '30.00')")->execute([$orderId, $product['id']]);

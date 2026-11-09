@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 4 (catálogo y cartilla):** cerrada, integrada (PR #6) y desplegada en staging con la cartilla de demo.
+**Fase 5 (ventas y pedidos):** lista en `feature/f5-ventas`, pendiente de PR y de staging.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -67,5 +67,21 @@
   - Pedir la carpeta sin archivo no lista nada: el servidor redirige al login de gyros, por su
     `ErrorDocument 403` global, que no es nuestro.
 
+- 2026-11-08: Fase 5 (API `0.5.0`), sin migraciones ni dependencias nuevas:
+  - Pedidos con precios siempre desde la BD, número diario, descuento con permiso y pagos iniciales,
+    todo en una sola transacción.
+  - Edición de ítems mientras el pedido está PENDIENTE y sin pagos.
+  - Estados solo hacia adelante, con saltos; ENTREGADO exige pago completo.
+  - Cancelación con motivo que anula los pagos y crea sus reversos (neto 0).
+  - Pagos efectivo/QR sin sobrepago; cada uno es un `INGRESO`, y anularlo crea el `EGRESO` de reverso.
+  - `Idempotency-Key` en pedidos y pagos: un reintento no duplica, y otra petición con la misma clave da 409.
+  - `FinanceLedger`, que reutilizarán compras y gastos.
+  - 97 tests en verde y prueba de punta a punta por HTTP en dev.
+  - Al probar por HTTP apareció un 500 en `GET /orders/{id}` inexistente (faltaba un helper); se corrigió
+    y se agregó el test de 404.
+  - Dos tests anteriores insertaban el pedido #1 de una fecha fija y chocaban con los pedidos reales de
+    dev; ahora usan fechas que nunca son reales.
+
 ## Próximo
-- Fase 5 (ventas y pedidos), previa aprobación.
+- PR `feature/f5-ventas` → `develop` y, con OK del usuario, `deploy.sh staging` (no hay migraciones).
+- Fase 6 (compras, insumos e inventario), previa aprobación.
