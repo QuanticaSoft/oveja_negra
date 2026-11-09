@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 6 (compras, insumos e inventario):** cerrada, integrada (PR #10) y desplegada en staging con la demo de insumos.
+**Fase 7 (gastos, finanzas, dashboard y reportes):** lista en `feature/f7-finanzas-reportes`, pendiente de PR y de staging. Con ella termina el backend del MVP.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -102,5 +102,20 @@
   - Demo cargada: 6 categorías de insumo, 9 insumos y 1 proveedor. La cartilla sigue con 8 productos
     (idempotente) y el inventario empieza sin movimientos.
 
+- 2026-11-08: Fase 7 (API `0.7.0`), sin migraciones ni dependencias nuevas:
+  - Categorías de gasto (solo ADMIN) y gastos con Idempotency-Key, cuyo `EGRESO` y reverso van en la
+    fecha del gasto.
+  - Libro financiero paginado y resumen (cuadre): cobrado (efectivo/QR) − compras − gastos = resultado,
+    todo neto de reversos.
+  - Dashboard: resumen, pedidos (vendido, ticket promedio, cancelados, por canal y estado), top 5 y stock bajo.
+  - Reportes: ventas diarias y mensuales (con días y meses vacíos), compras por proveedor e insumo,
+    gastos por categoría, productos más vendidos y flujo diario con acumulado.
+  - `QueryParams` en Core reemplaza a los helpers duplicados de los controllers.
+  - Demo: 6 categorías de gasto.
+  - 118 tests en verde. Un test de cuadre con pedidos, cancelación, compras y gastos anulados; se verificó
+    que falla si las compras no se calculan netas.
+  - Prueba de punta a punta por HTTP en dev.
+
 ## Próximo
-- Fase 7 (gastos, finanzas, dashboard y reportes), previa aprobación.
+- PR `feature/f7-finanzas-reportes` → `develop` y, con OK del usuario, `deploy.sh staging` y `seed.sh staging`.
+- Fase 8 (app Flutter), previa aprobación.

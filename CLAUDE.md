@@ -90,7 +90,9 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Todo asiento en `financial_transactions` pasa por `FinanceLedger` (`record` / `reverse`); el día
   operativo sale de `config['business_day_cutoff']`.
 - Tests con pedidos insertados a mano: usar fechas que nunca sean reales (p. ej. `2000-01-01`), porque
-  la BD dev tiene pedidos reales de hoy y `(business_date, daily_number)` es UNIQUE.
+  la BD dev tiene pedidos reales de hoy y `(business_date, daily_number)` es UNIQUE. En los reportes,
+  compras y gastos van en fechas de 2001; los pedidos (siempre de hoy) se comparan antes y después.
+- Controllers: los filtros de query se leen con `QueryParams::only([...])`.
 - Imágenes: siempre por `ImageProcessor::store()` (re-codifica, sin EXIF) y URLs con `Media::url()`.
   Las subidas van bajo `p/`; nunca borrar fuera de ese prefijo (`demo/` es la media de demo).
 - Comandos para el usuario: su Mac usa **zsh** (`read -p` no sirve; usar `read -s "VAR?Prompt: "`) y las

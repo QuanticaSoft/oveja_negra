@@ -69,6 +69,25 @@ $router->get('/v1/inventory/movements', [InventoryController::class, 'movements'
 $router->post('/v1/inventory/adjustments', [InventoryController::class, 'adjust'], 'inventory.adjust');
 $router->post('/v1/inventory/consumptions', [InventoryController::class, 'consume'], 'inventory.consume');
 
+// Gastos y finanzas
+$router->get('/v1/expense-categories', [FinanceController::class, 'expenseCategories'], 'expenses.read');
+$router->post('/v1/expense-categories', [FinanceController::class, 'createExpenseCategory'], 'expense_categories.manage');
+$router->patch('/v1/expense-categories/{id}', [FinanceController::class, 'updateExpenseCategory'], 'expense_categories.manage');
+$router->get('/v1/expenses', [FinanceController::class, 'expenses'], 'expenses.read');
+$router->post('/v1/expenses', [FinanceController::class, 'createExpense'], 'expenses.create');
+$router->post('/v1/expenses/{id}/void', [FinanceController::class, 'voidExpense'], 'expenses.void');
+$router->get('/v1/finance/transactions', [FinanceController::class, 'transactions'], 'finance.read');
+$router->get('/v1/finance/summary', [FinanceController::class, 'summary'], 'finance.read');
+
+// Dashboard y reportes
+$router->get('/v1/dashboard', [ReportsController::class, 'dashboard'], 'dashboard.read');
+$router->get('/v1/reports/sales/daily', [ReportsController::class, 'salesDaily'], 'reports.read');
+$router->get('/v1/reports/sales/monthly', [ReportsController::class, 'salesMonthly'], 'reports.read');
+$router->get('/v1/reports/purchases', [ReportsController::class, 'purchases'], 'reports.read');
+$router->get('/v1/reports/expenses/by-category', [ReportsController::class, 'expensesByCategory'], 'reports.read');
+$router->get('/v1/reports/products/top', [ReportsController::class, 'topProducts'], 'reports.read');
+$router->get('/v1/reports/finance/movements', [ReportsController::class, 'financeMovements'], 'reports.read');
+
 // Roles y permisos
 $router->get('/v1/roles', [RolesController::class, 'index'], 'roles.manage');
 $router->get('/v1/permissions', [RolesController::class, 'permissions'], 'roles.manage');

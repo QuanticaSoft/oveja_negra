@@ -30,7 +30,7 @@ final class AuthMiddlewareTest extends DbTestCase
         $token = $this->token($this->insertUser('CAJERO', 'cajero.test'));
         $this->assertSame('CAJERO', $this->authenticate($token, 'orders.create')->roleCode);
         $this->authenticate($token, 'payments.create');
-        foreach (['users.manage', 'orders.cancel', 'payments.void', 'purchases.create', 'reports.read'] as $denied) {
+        foreach (['users.manage', 'orders.cancel', 'payments.void', 'purchases.create', 'reports.read', 'dashboard.read', 'finance.read', 'expenses.create'] as $denied) {
             $this->assertApiError('FORBIDDEN', 403, fn () => $this->authenticate($token, $denied));
         }
     }
@@ -41,7 +41,7 @@ final class AuthMiddlewareTest extends DbTestCase
         $this->authenticate($token, 'purchases.create');
         $this->authenticate($token, 'expenses.create');
         $this->authenticate($token, 'reports.read');
-        foreach (['orders.create', 'orders.read', 'payments.create', 'users.manage', 'catalog.manage'] as $denied) {
+        foreach (['orders.create', 'orders.read', 'payments.create', 'users.manage', 'catalog.manage', 'expense_categories.manage'] as $denied) {
             $this->assertApiError('FORBIDDEN', 403, fn () => $this->authenticate($token, $denied));
         }
     }
