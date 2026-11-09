@@ -116,8 +116,9 @@ lib/
 ├── app/            router (go_router), tema (negro/blanco/naranja), app.dart
 ├── core/
 │   ├── config/     API_BASE_URL vía --dart-define
-│   ├── network/    dio + interceptor (X-Auth-Token, refresh, Idempotency-Key), mapeo de errores
-│   ├── storage/    tokens en flutter_secure_storage
+│   ├── network/    dio + AuthInterceptor (X-Auth-Token, un solo refresh a la vez), ApiException,
+│   │               IdempotencyKey (UUID v4 con Random.secure)
+│   ├── storage/    refresh token en flutter_secure_storage; access token solo en memoria
 │   ├── utils/      formato Bs, fechas America/La_Paz
 │   └── widgets/    componentes comunes
 └── features/<feature>/
@@ -126,6 +127,10 @@ lib/
     └── presentation/  screens + providers (Riverpod)
 ```
 
+Sesión: `SessionController` (`AsyncNotifier<AuthUser?>`) restaura la sesión con el refresh token
+al abrir la app; `go_router` redirige según ese estado (`redirectFor`) y según el permiso de cada
+sección (`app/destinations.dart`). En tablet (≥ 900 px) el menú queda fijo; en teléfono es un drawer.
+
 Features: `auth`, `dashboard`, `catalog`, `orders`, `purchases`, `inventory`, `expenses`,
 `reports`, `users`. Solo en línea (sin modo offline en el MVP).
 
@@ -133,6 +138,6 @@ Features: `auth`, `dashboard`, `catalog`, `orders`, `purchases`, `inventory`, `e
 
 | Entorno | Rama | API | Código | BD |
 |---|---|---|---|---|
-| dev | `feature/*` | `http://localhost:8080/v1` | repo local (Docker) | Postgres Docker, schema `oveja_negra` |
+| dev | `feature/*` | `http://localhost:8082/v1` (emulador Android: `http://10.0.2.2:8082/v1`) | repo local (Docker) | Postgres Docker, schema `oveja_negra` |
 | staging | `develop` | `https://www.quanticasoft.com/oveja_negra/api-staging/v1` | `~/oveja_negra/staging` | `gyros.oveja_negra_staging` |
 | prod | tag en `main` | `https://www.quanticasoft.com/oveja_negra/api/v1` | `~/oveja_negra/prod` | `gyros.oveja_negra` |

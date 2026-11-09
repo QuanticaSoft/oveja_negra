@@ -66,9 +66,22 @@ docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php       
 docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php MoneyTest    # filtra por "Clase::metodo"
 
 backend_api/scripts/migrate.sh staging && backend_api/scripts/deploy.sh staging   # desde develop, con OK del usuario
+
+cd app_ovejanegra && flutter analyze && flutter test                # app: análisis y tests
+flutter run                                                         # emulador Android contra el API de dev (10.0.2.2:8082)
 backend_api/scripts/backup.sh staging|prod
 ```
 Instalación y flamenco: `docs/INSTALL.md`.
+
+## App: convenciones del código
+- Riverpod 3 **sin generación de código** (`Notifier`/`AsyncNotifier` y providers a mano).
+- Toda llamada al API pasa por `apiCall()` y lanza `ApiException` (con `details` por campo); las que
+  requieren sesión usan `apiDioProvider`. Nunca leer ni escribir tokens fuera de `TokenStore`.
+- Dinero en centavos `int` con `Money` (nunca `double`); hacia el API, `Money.toApi()`.
+- Cada creación (pedido, pago, compra, gasto) genera su `IdempotencyKey` una vez y la reutiliza en reintentos.
+- Lo que se muestra depende de `user.can('permiso')`, nunca del nombre del rol. Una sección nueva se
+  agrega en `app/destinations.dart` con su permiso.
+- Tests: dobles a mano en `test/support/fakes.dart` (`FakeAdapter` para Dio, `MemoryRefreshTokenStorage`).
 
 ## Backend: convenciones del código
 - Sin namespaces: el autoloader de `src/bootstrap.php` busca `src/Core/<Clase>.php` y

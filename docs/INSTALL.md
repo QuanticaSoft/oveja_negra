@@ -2,7 +2,7 @@
 
 ## Dev local
 
-Requisitos: Docker y Flutter (la app llega en la Fase 8). No hace falta PHP ni `psql` en el Mac.
+Requisitos: Docker y Flutter (3.47+, con el SDK de Android). No hace falta PHP ni `psql` en el Mac.
 
 ```bash
 docker compose -f infra/docker-compose.dev.yml up -d --build   # Postgres :5444 + API :8082
@@ -20,6 +20,20 @@ docker compose -f infra/docker-compose.dev.yml exec api php tests/run.php
 - Primer ADMIN de dev: `docker compose -f infra/docker-compose.dev.yml exec api php bin/create-admin.php`.
 - Cartilla de demo (8 productos con fotos): `backend_api/scripts/seed.sh dev`. Es idempotente.
   Las imágenes quedan en `backend_api/public/media/` (fuera de git) y se sirven en `http://localhost:8082/media/`.
+
+## App Flutter (`app_ovejanegra/`)
+
+```zsh
+cd app_ovejanegra
+flutter pub get
+flutter analyze && flutter test
+flutter emulators --launch Pixel_6a
+flutter run                      # dev: API en http://10.0.2.2:8082/v1 (el Mac visto desde el emulador)
+flutter run --dart-define=API_BASE_URL=https://www.quanticasoft.com/oveja_negra/api-staging/v1
+```
+- Sin `--dart-define`, la app usa el API de dev. El HTTP sin cifrar solo está permitido en debug
+  (`android/app/src/debug/AndroidManifest.xml`). Un build de release se niega a arrancar si la URL no es `https`.
+- Usuarios para probar en dev: se crean con `bin/create-admin.php` y desde la API (`POST /v1/users`).
 
 ## PostgreSQL
 

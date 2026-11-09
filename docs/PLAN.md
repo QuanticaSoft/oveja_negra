@@ -17,7 +17,10 @@ Cada fase: analizar lo existente → proponer → **aprobación del usuario** �
 | 5 | `feature/f5-ventas` | Pedidos, ítems, estados, pagos, cancelación con reverso, idempotencia | transacción, idempotencia, cancelado ≠ ingreso |
 | 6 | `feature/f6-compras-inventario` | Insumos, proveedores, compras, anulación, movimientos, ajustes, consumo, stock bajo | stock, costo promedio, anulación |
 | 7 | `feature/f7-finanzas-reportes` | Gastos, transacciones, resumen, dashboard, reportes | cuadre ventas − compras − gastos |
-| 8 | `feature/f8-app-*` | App Flutter por módulos (puede dividirse en subramas) | `flutter analyze` limpio, widget tests |
+| 8a | `feature/f8a-app-base` | Proyecto Flutter, red y sesión (refresh único), tema, menú por permisos, login y cuenta | `flutter analyze` limpio, tests, emulador |
+| 8b | `feature/f8b-app-ventas` | Nueva venta, pedidos, cartilla y productos (`image_picker`) | ídem |
+| 8c | `feature/f8c-app-compras-inventario` | Compras, insumos, kardex, ajustes, consumos y proveedores | ídem |
+| 8d | `feature/f8d-app-finanzas-reportes` | Gastos, dashboard con gráficos, reportes, usuarios y permisos | ídem |
 | 9 | `feature/f9-hardening` | Revisión de seguridad, validaciones, documentación de instalación y despliegue | checklist + prueba de punta a punta |
 
 ## Etapa 2 (después del MVP)

@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 7 (gastos, finanzas, dashboard y reportes):** cerrada, integrada (PR #12) y desplegada en staging. **El backend del MVP está completo** (API `0.7.0`); sigue la app Flutter.
+**Fase 8a (app: base y login):** lista en `feature/f8a-app-base`, pendiente de PR. El backend del MVP está completo (API `0.7.0`, en staging).
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -120,5 +120,18 @@
   gastos, finanzas, dashboard y reportes responden 401 sin sesión. Demo con 6 categorías de gasto (la
   cartilla, los insumos y el proveedor no se duplicaron).
 
+- 2026-11-08: Fase 8a (app `0.8.0+1`):
+  - Proyecto Flutter solo para Android (`com.quanticasoft.ovejanegra`) con las 6 dependencias aprobadas,
+    en versiones de al menos dos semanas, verificadas en pub.dev y en Context7.
+  - `AuthInterceptor` con un solo refresh a la vez; refresh token cifrado y access token en memoria.
+  - `ApiException` con errores por campo; `Money` idéntico al backend; `IdempotencyKey`; hora de La Paz.
+  - Login, restauración de la sesión (con reintento sin red), mi cuenta, cambio de contraseña y logout.
+  - Tema negro, blanco y naranja; menú según permisos, fijo en tablet y desplegable en teléfono. Las
+    secciones de 8b–8d muestran "Disponible en la parte …".
+  - HTTP sin cifrar solo en debug; un build de release exige `https`.
+  - `flutter analyze` limpio y 16 tests. Se verificó que el test del refresh único falla si se quita.
+  - Build en el emulador Pixel 6a: la app llega al API de dev (intento registrado en `auth_attempts`).
+  - Docs: `ARCHITECTURE.md` decía que dev usa el puerto 8080; es el 8082.
+
 ## Próximo
-- Fase 8 (app Flutter), previa aprobación.
+- PR `feature/f8a-app-base` → `develop`. Después, plan detallado de la 8b (ventas) para aprobar.
