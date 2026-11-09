@@ -2,6 +2,21 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: App: un solo refresh a la vez y access token solo en memoria
+`AuthInterceptor` comparte un único refresh entre todas las peticiones que reciben 401 a la vez, y
+las reintenta con el token nuevo. **Por qué:** el refresh token es de un solo uso y reusarlo revoca
+todas las sesiones (se asume robo); dos refresh simultáneos cerrarían la sesión del cajero. El refresh
+token vive cifrado en `flutter_secure_storage` y el access token solo en memoria. Sin red no se cierra
+la sesión: se muestra el error con reintento.
+
+## 2026-11-08: App: dependencias y alcance
+Android solamente en el MVP (iOS requiere firma de Apple y web, CORS en el API). Versiones fijadas con
+al menos dos semanas publicadas: `flutter_riverpod ^3.4.3` (sin generación de código), `go_router ^18.1.1`,
+`dio ^5.11.1`, `flutter_secure_storage ^11.2.0`, `intl ^0.20.3`, `fl_chart ^1.3.0`. Sin `uuid` (la clave
+se genera con `Random.secure`) y sin `mocktail` (dobles escritos a mano). `image_picker` se agrega en
+la parte 8b. La hora de La Paz se calcula como UTC−4 fijo (Bolivia no tiene horario de verano), sin
+paquete de zonas horarias. (Aprobado por el usuario.)
+
 ## 2026-11-08: "Vendido" y "cobrado" son cifras distintas
 `sold` = pedidos no cancelados por `orders.business_date`; `collected` = cobros netos del libro por el día
 en que entró el dinero. El resultado operativo usa "cobrado", porque es lo que cuadra con la caja.
