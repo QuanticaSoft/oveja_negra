@@ -37,6 +37,16 @@ $router->patch('/v1/products/{id}/availability', [CatalogController::class, 'set
 $router->post('/v1/products/{id}/image', [CatalogController::class, 'uploadImage'], 'catalog.manage');
 $router->get('/v1/products/{id}/price-history', [CatalogController::class, 'priceHistory'], 'catalog.manage');
 
+// Pedidos y pagos
+$router->get('/v1/orders', [OrdersController::class, 'index'], 'orders.read');
+$router->post('/v1/orders', [OrdersController::class, 'create'], 'orders.create');
+$router->get('/v1/orders/{id}', [OrdersController::class, 'show'], 'orders.read');
+$router->patch('/v1/orders/{id}/items', [OrdersController::class, 'replaceItems'], 'orders.create');
+$router->patch('/v1/orders/{id}/status', [OrdersController::class, 'changeStatus'], 'orders.update_status');
+$router->post('/v1/orders/{id}/cancel', [OrdersController::class, 'cancel'], 'orders.cancel');
+$router->post('/v1/orders/{id}/payments', [OrdersController::class, 'createPayment'], 'payments.create');
+$router->post('/v1/payments/{id}/void', [OrdersController::class, 'voidPayment'], 'payments.void');
+
 // Roles y permisos
 $router->get('/v1/roles', [RolesController::class, 'index'], 'roles.manage');
 $router->get('/v1/permissions', [RolesController::class, 'permissions'], 'roles.manage');

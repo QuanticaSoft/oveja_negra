@@ -100,16 +100,77 @@ Producto:
 
 ## Pedidos y pagos
 
-| Método | Ruta | Permiso | Notas |
-|---|---|---|---|
-| POST | `/v1/orders` | `orders.create` | Idempotency-Key. `{channel, items:[{product_id, quantity}], discount?, customer_name?, customer_phone?, notes?, payments?:[{method, amount}]}`. Precios siempre de la BD |
-| GET | `/v1/orders?from&to&status&channel` | `orders.read` | |
-| GET | `/v1/orders/{id}` | `orders.read` | |
-| PATCH | `/v1/orders/{id}/items` | `orders.create` | solo PENDIENTE y sin pagos |
-| PATCH | `/v1/orders/{id}/status` | `orders.update_status` | `{status}` con transición válida |
-| POST | `/v1/orders/{id}/cancel` | `orders.cancel` | `{reason}`; anula pagos y crea reversos |
-| POST | `/v1/orders/{id}/payments` | `payments.create` | Idempotency-Key. `{method, amount}` |
-| POST | `/v1/payments/{id}/void` | `payments.void` | `{reason}` |
+| Método | Ruta | Permiso |
+|---|---|---|
+| POST | `/v1/orders` (Idempotency-Key) → 201, o 200 si es un reintento | `orders.create` |
+| GET | `/v1/orders?from&to&status&channel&sort&page&per_page` | `orders.read` |
+| GET | `/v1/orders/{id}` (incluye pagos) | `orders.read` |
+| PATCH | `/v1/orders/{id}/items` `{items, discount?}`: reemplaza todos los ítems | `orders.create` |
+| PATCH | `/v1/orders/{id}/status` `{status}` | `orders.update_status` |
+| POST | `/v1/orders/{id}/cancel` `{reason}` | `orders.cancel` (solo ADMIN por defecto) |
+| POST | `/v1/orders/{id}/payments` (Idempotency-Key) `{method, amount}` → 201, o 200 si es un reintento | `payments.create` |
+| POST | `/v1/payments/{id}/void` `{reason}` | `payments.void` (solo ADMIN por defecto) |
+
+Crear pedido:
+```json
+{"channel": "WHATSAPP", "items": [{"product_id": 3, "quantity": 2}], "discount": "5.00",
+ "customer_name": "Ana", "customer_phone": "+59170000000", "notes": "sin cebolla",
+ "payments": [{"method": "EFECTIVO", "amount": "20"}, {"method": "QR", "amount": "26"}]}
+```
+- **Los precios salen siempre de la BD**; si el cliente envía un precio, se ignora. Cada ítem guarda
+  una copia del nombre y del precio, así que un cambio de precio posterior no altera el pedido.
+- 1 a 50 líneas, cantidad de 1 a 99, un producto por línea. El producto debe estar activo, disponible y
+  en una categoría activa.
+- `discount` es un monto fijo, exige `orders.discount` y no puede superar el subtotal.
+- `payments` es opcional (hasta 5, para pagos mixtos) y exige `payments.create`. Si algo falla, no se
+  guarda nada: ni el pedido, ni sus ítems, ni sus pagos.
+- `customer_phone` acepta de 7 a 15 dígitos con `+` opcional (puede ser extranjero); se guarda sin espacios.
+
+**Idempotency-Key** (UUID, obligatoria en `POST /orders` y `POST /orders/{id}/payments`): la app genera una
+por operación y la repite en cada reintento. Repetir la misma petición devuelve lo ya creado, con 200.
+Si la clave se repite con otro canal o ítems, otro pedido, método o importe, o la usa otro usuario,
+responde 409 `IDEMPOTENCY_KEY_REUSED`.
+
+Pedido:
+```json
+{"id": 184, "number": 3, "business_date": "2026-11-08", "channel": "LOCAL", "status": "PENDIENTE",
+ "customer_name": null, "customer_phone": null, "notes": null,
+ "items": [{"id": 1, "product_id": 39, "name": "Bacon", "unit_price": "32.00", "quantity": 1, "line_total": "32.00"}],
+ "subtotal": "32.00", "discount": "0.00", "total": "32.00", "paid": "10.00", "balance": "22.00",
+ "payment_status": "PARCIAL", "created_by": {"id": 2, "full_name": "…"}, "cancelled": null,
+ "created_at": "…", "updated_at": "…", "payments": [ … ]}
+```
+- `number` es el número del día (#1, #2…); reinicia cada día operativo (corte a las 04:00).
+- `payment_status` = `SIN_PAGAR` | `PARCIAL` | `PAGADO`, calculado con los pagos confirmados. Un pedido
+  de total 0 queda `PAGADO`.
+- `payments` (solo en el detalle): `{id, order_id, method, amount, status, received_by, created_at,
+  voided: null | {by, at, reason}}`.
+
+Listado: `from`/`to` son días operativos (`YYYY-MM-DD`, por defecto hoy, rango máximo de 92 días);
+`status` admite varios separados por coma (`PENDIENTE,EN_PREPARACION` para la cocina); `sort=asc|desc`
+(por defecto `desc`). Incluye los ítems, no los pagos.
+
+Estados: `PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO`, siempre hacia adelante y **se pueden saltar
+pasos**. Para pasar a ENTREGADO el pedido tiene que estar pagado por completo. CANCELADO solo se pone
+con `/cancel`, desde cualquier estado salvo ENTREGADO, y anula todos los pagos confirmados (cada uno con
+su reverso).
+
+Cada pago confirmado genera un `INGRESO` (categoría `VENTA`) en el día operativo en que se cobra. Al
+anularlo se genera un `EGRESO` de reverso en el día de la anulación. Un pedido cancelado deja un neto de 0.
+
+| Error | HTTP | Cuándo |
+|---|---|---|
+| `IDEMPOTENCY_KEY_REQUIRED` | 400 | Falta el header en una creación |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | Misma clave con otro contenido o de otro usuario |
+| `PRODUCT_UNAVAILABLE` | 409 | Producto agotado o desactivado; `details.products = [{id, name}]` |
+| `DISCOUNT_EXCEEDS_SUBTOTAL` | 422 | Descuento mayor que el subtotal (también al editar ítems) |
+| `OVERPAYMENT` | 422 | El pago supera el saldo; `details.balance` |
+| `UNPAID_ORDER` | 422 | Pasar a ENTREGADO con saldo pendiente; `details.balance` |
+| `INVALID_TRANSITION` | 409 | Volver a un estado anterior, o cancelar un pedido entregado |
+| `ORDER_CANCELLED` | 409 | Cambiar el estado, cobrar o cancelar de nuevo un pedido cancelado |
+| `ORDER_LOCKED` | 409 | Editar ítems de un pedido que no está PENDIENTE o que tiene pagos |
+| `PAYMENT_ALREADY_VOIDED` | 409 | Anular un pago ya anulado |
+| `FORBIDDEN` | 403 | Descuento sin `orders.discount` o pagos sin `payments.create` |
 
 ## Compras, insumos e inventario
 

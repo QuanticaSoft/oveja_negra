@@ -2,6 +2,38 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: Estados del pedido: solo hacia adelante, con saltos
+`PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO`; se puede saltar, por ejemplo PENDIENTE → ENTREGADO
+para una bebida en el mostrador, pero nunca volver atrás. CANCELADO tiene su propio endpoint y pide un
+motivo. (Aprobado por el usuario.)
+
+## 2026-11-08: Solo se entrega un pedido pagado
+Pasar a ENTREGADO exige saldo 0 (422 `UNPAID_ORDER`). En WhatsApp con pago contra entrega se cobra y
+después se marca la entrega. **Por qué:** que ningún pedido salga sin cobrar. (Aprobado por el usuario.)
+
+## 2026-11-08: El ingreso cuenta el día en que se cobra
+`financial_transactions.business_date` de un pago es el día operativo en que se cobró, no el del pedido;
+el reverso cuenta el día en que se anuló. Los reportes de ventas por pedido usan `orders.business_date`.
+**Por qué:** la caja de cada día debe cuadrar con el dinero que entró ese día. (Aprobado por el usuario.)
+
+## 2026-11-08: Idempotencia sin columna de huella
+Sin migración nueva: un reintento se compara con lo guardado. En un pedido se comparan el usuario, el
+canal y los ítems; en un pago, el pedido, el método, el importe y el usuario. Si dos reintentos llegan a
+la vez, el `UNIQUE` de la clave hace fallar al segundo, que entonces devuelve el registro del primero.
+
+## 2026-11-08: Número diario con reintento, sin advisory locks
+`daily_number = max + 1` del día, dentro de un savepoint. Si dos cajas toman el mismo número, el UNIQUE
+rechaza a una, que reintenta (hasta 3 veces). **Por qué:** los advisory locks son de toda la BD `gyros`
+y podrían chocar con las claves de otra app; una tabla contador requería una migración.
+
+## 2026-11-08: Editar ítems reemplaza el conjunto
+`PATCH /orders/{id}/items` borra y vuelve a insertar los ítems con los precios actuales. Solo se puede
+mientras el pedido está PENDIENTE y sin pagos; en ese momento todavía no es histórico (el trigger
+`guard_order_items_change` lo garantiza) y `audit_logs` guarda el antes y el después.
+
+## 2026-11-08: Pagos en efectivo sin vuelto
+Se guarda el importe aplicado al pedido, no el entregado por el cliente; el vuelto lo calcula la app.
+
 ## 2026-11-08: Imágenes: código propio y siempre re-codificadas
 `ImageProcessor` (escrito para este proyecto, sin reutilizar código de Hobby-Store por pedido del
 usuario) valida el tipo real, decodifica con GD y escribe un JPEG nuevo en 800 px y 300 px. Así un

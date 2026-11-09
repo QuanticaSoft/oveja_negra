@@ -86,8 +86,9 @@ erDiagram
 | `order_items` | `order_id`, `product_id`, `product_name_snapshot`, `unit_price_snapshot`, `quantity`, `line_total` | `quantity > 0`; `line_total = unit_price_snapshot * quantity` |
 | `payments` | `order_id`, `method` (EFECTIVO, QR), `amount`, `status` (CONFIRMADO, ANULADO), `received_by`, `voided_by`, `idempotency_key` | `amount > 0`; `idempotency_key` UNIQUE |
 
-- `status` del pedido: PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO; CANCELADO desde
-  cualquiera antes de ENTREGADO. Transiciones validadas en el service.
+- `status` del pedido: PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO, solo hacia adelante y con saltos
+  permitidos; ENTREGADO exige saldo 0. CANCELADO desde cualquiera antes de ENTREGADO. Transiciones
+  validadas en el service.
 - El **estado del pago se deriva**: `SUM(payments CONFIRMADO)` contra `total` → sin pagar / parcial / pagado.
   No se permite pagar de más.
 - Los ítems solo se editan con el pedido PENDIENTE y sin pagos; si no, se cancela y se crea otro.

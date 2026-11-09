@@ -45,7 +45,7 @@ final class SchemaTest extends DbTestCase
     {
         $userId = $this->createUser();
         $insert = "INSERT INTO orders (business_date, daily_number, channel, subtotal, discount, total, created_by)
-                   VALUES ('2026-11-07', 1, 'LOCAL', ?, ?, ?, ?)";
+                   VALUES ('1999-12-31', 1, 'LOCAL', ?, ?, ?, ?)";
         $this->assertDbRejects(self::CHECK_VIOLATION, $insert, ['50.00', '60.00', '-10.00', $userId]);
         $this->assertDbRejects(self::CHECK_VIOLATION, $insert, ['50.00', '5.00', '50.00', $userId]);
     }
@@ -117,7 +117,7 @@ final class SchemaTest extends DbTestCase
     {
         return (int) $this->scalar(
             "INSERT INTO orders (business_date, daily_number, channel, subtotal, total, created_by)
-             VALUES ('2026-11-07', 1, 'LOCAL', '35.00', '35.00', ?) RETURNING id", [$userId]);
+             VALUES ('1999-12-31', 1, 'LOCAL', '35.00', '35.00', ?) RETURNING id", [$userId]);
     }
 
     private function createProduct(): int

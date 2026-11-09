@@ -81,6 +81,14 @@ Instalación y flamenco: `docs/INSTALL.md`.
   → Repository (SQL con parámetros). Así los services se prueban sin HTTP.
 - Dinero en PHP como **centavos `int`** (`Money`, `Validation::money`); hacia la BD con `Money::fromCents()`.
   En las respuestas JSON los importes van como **texto** (`"25.00"`), tal cual los devuelve `NUMERIC`.
+- Creaciones que la app puede reintentar (pedidos, pagos; después compras y gastos): header
+  `Idempotency-Key` con `Idempotency::key()`. Si la clave ya existe, se devuelve lo creado (200) o
+  `Idempotency::reused()` si el contenido no coincide. La carrera se resuelve con el `UNIQUE`
+  (`Idempotency::isUniqueViolation`).
+- Todo asiento en `financial_transactions` pasa por `FinanceLedger` (`record` / `reverse`); el día
+  operativo sale de `config['business_day_cutoff']`.
+- Tests con pedidos insertados a mano: usar fechas que nunca sean reales (p. ej. `2000-01-01`), porque
+  la BD dev tiene pedidos reales de hoy y `(business_date, daily_number)` es UNIQUE.
 - Imágenes: siempre por `ImageProcessor::store()` (re-codifica, sin EXIF) y URLs con `Media::url()`.
   Las subidas van bajo `p/`; nunca borrar fuera de ese prefijo (`demo/` es la media de demo).
 - Comandos para el usuario: su Mac usa **zsh** (`read -p` no sirve; usar `read -s "VAR?Prompt: "`) y las

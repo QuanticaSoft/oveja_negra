@@ -41,7 +41,7 @@ final class AuthMiddlewareTest extends DbTestCase
         $this->authenticate($token, 'purchases.create');
         $this->authenticate($token, 'expenses.create');
         $this->authenticate($token, 'reports.read');
-        foreach (['orders.create', 'users.manage', 'catalog.manage'] as $denied) {
+        foreach (['orders.create', 'orders.read', 'payments.create', 'users.manage', 'catalog.manage'] as $denied) {
             $this->assertApiError('FORBIDDEN', 403, fn () => $this->authenticate($token, $denied));
         }
     }
