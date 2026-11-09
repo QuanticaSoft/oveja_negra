@@ -63,6 +63,13 @@ abstract class TestCase
         return $e;
     }
 
+    /** UUID v4 para Idempotency-Key. */
+    protected static function uuid(): string
+    {
+        $hex = bin2hex(random_bytes(16));
+        return sprintf('%s-%s-4%s-a%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 13, 3), substr($hex, 17, 3), substr($hex, 20, 12));
+    }
+
     protected function fail(string $message): never
     {
         throw new AssertionFailed($message);

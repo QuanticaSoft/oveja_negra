@@ -33,6 +33,44 @@ final class Validation
         return $value;
     }
 
+    /** Teléfono de cliente o proveedor: puede ser extranjero, así que no se exige +591. Se guarda sin espacios. */
+    public static function looseOptionalPhone(mixed $value): string|null|false
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_string($value)) {
+            return false;
+        }
+        $phone = preg_replace('/[\s-]/', '', $value);
+        return preg_match('/^\+?\d{7,15}$/', $phone) ? $phone : false;
+    }
+
+    public static function date(mixed $value): ?string
+    {
+        if (!is_string($value) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)
+            || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+            return null;
+        }
+        return $value;
+    }
+
+    /**
+     * Cantidad en milésimas (hasta 3 decimales). $signed admite negativos; nunca 0.
+     * Acepta "1.5", 1.5 o 2 (los float de json_decode se convierten por su texto más corto).
+     */
+    public static function quantity(mixed $value, bool $signed = false, int $maxMilli = 99_999_999): ?int
+    {
+        if (is_int($value) || is_float($value)) {
+            $value = (string) $value;
+        }
+        if (!is_string($value) || !preg_match($signed ? '/^-?\d{1,9}(\.\d{1,3})?$/' : '/^\d{1,9}(\.\d{1,3})?$/', $value)) {
+            return null;
+        }
+        $milli = Quantity::toMilli($value);
+        return $milli === 0 || abs($milli) > $maxMilli ? null : $milli;
+    }
+
     public static function bool(mixed $value): ?bool
     {
         return is_bool($value) ? $value : null;

@@ -37,7 +37,7 @@ final class PaymentsService
             });
         } catch (Throwable $e) {
             // Dos reintentos simultáneos: el que pierde la carrera devuelve el pago del ganador.
-            if (Idempotency::isUniqueViolation($e, 'payments_idempotency_key_key')) {
+            if (Db::isUniqueViolation($e, 'payments_idempotency_key_key')) {
                 $existing = $this->payments->findByIdempotencyKey($key) ?? throw $e;
                 return $this->replay($existing, $orderId, $method, $cents);
             }

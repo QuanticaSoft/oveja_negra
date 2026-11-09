@@ -2,6 +2,26 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: Anular una compra revierte en la fecha de la compra
+El reverso del `EGRESO` usa `purchase_date`, no el día de la anulación. **Por qué:** anular una compra
+suele corregir un error de carga, y los reportes de ese día deben quedar como si no hubiera existido. Los
+pagos, en cambio, revierten el día de la anulación (caja). (Aprobado por el usuario.)
+
+## 2026-11-08: Ajustes y consumos sin Idempotency-Key
+No tienen columna para la clave y agregarla exigía una migración. Son manuales y poco frecuentes: un
+duplicado se ve en el kardex y se corrige con otro ajuste. (Aprobado por el usuario.)
+
+## 2026-11-08: Compras: fecha no futura y total mayor que 0
+`purchase_date` acepta cualquier fecha pasada (boletas atrasadas), nunca futura en hora de La Paz. Se
+admiten líneas de precio 0 (bonificación), pero no una compra de Bs 0: `financial_transactions.amount`
+debe ser mayor que 0. (Aprobado por el usuario.)
+
+## 2026-11-08: Stock y costo solo por InventoryLedger
+`InventoryLedger` es el único que escribe `inventory_movements` y actualiza `current_stock` y
+`avg_unit_cost`, en la misma sentencia y bajo `FOR UPDATE`. Los insumos se bloquean siempre en orden de
+id para evitar interbloqueos. Un ajuste no cambia el costo, porque no tiene precio. Las cantidades se
+calculan en milésimas enteras (`Quantity`), igual que el dinero en centavos.
+
 ## 2026-11-08: Estados del pedido: solo hacia adelante, con saltos
 `PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO`; se puede saltar, por ejemplo PENDIENTE → ENTREGADO
 para una bebida en el mostrador, pero nunca volver atrás. CANCELADO tiene su propio endpoint y pide un

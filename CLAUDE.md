@@ -84,7 +84,9 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Creaciones que la app puede reintentar (pedidos, pagos; después compras y gastos): header
   `Idempotency-Key` con `Idempotency::key()`. Si la clave ya existe, se devuelve lo creado (200) o
   `Idempotency::reused()` si el contenido no coincide. La carrera se resuelve con el `UNIQUE`
-  (`Idempotency::isUniqueViolation`).
+  (`Db::isUniqueViolation`).
+- Todo movimiento de stock pasa por `InventoryLedger` (`lockAndCheck` y luego `move`); cantidades en
+  milésimas `int` (`Quantity`, `Validation::quantity`), como el dinero en centavos.
 - Todo asiento en `financial_transactions` pasa por `FinanceLedger` (`record` / `reverse`); el día
   operativo sale de `config['business_day_cutoff']`.
 - Tests con pedidos insertados a mano: usar fechas que nunca sean reales (p. ej. `2000-01-01`), porque

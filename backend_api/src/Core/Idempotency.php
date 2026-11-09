@@ -27,9 +27,4 @@ final class Idempotency
         return ApiException::conflict('IDEMPOTENCY_KEY_REUSED',
             'Esa Idempotency-Key ya se usó para otra operación. Genera una clave nueva.');
     }
-
-    public static function isUniqueViolation(Throwable $e, string $constraint): bool
-    {
-        return $e instanceof PDOException && $e->getCode() === '23505' && str_contains($e->getMessage(), $constraint);
-    }
 }

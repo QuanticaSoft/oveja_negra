@@ -10,7 +10,6 @@ final class OrdersService
     private const STATUSES = [...self::STATUS_FLOW, 'CANCELADO'];
     private const MAX_LINES = 50;
     private const MAX_QUANTITY = 99;
-    private const MAX_RANGE_DAYS = 92;
     private const DAILY_NUMBER_ATTEMPTS = 3;
 
     private readonly OrderRepository $orders;
@@ -31,14 +30,7 @@ final class OrdersService
     public function list(array $query): array
     {
         $today = $this->orders->currentBusinessDate($this->dayCutoff);
-        $from = self::date($query['from'] ?? $today, 'from');
-        $to = self::date($query['to'] ?? $today, 'to');
-        if ($from > $to) {
-            throw ApiException::validation(['from' => 'Debe ser anterior o igual a "to".']);
-        }
-        if ((new DateTimeImmutable($from))->diff(new DateTimeImmutable($to))->days >= self::MAX_RANGE_DAYS) {
-            throw ApiException::validation(['to' => 'El rango máximo es de ' . self::MAX_RANGE_DAYS . ' días.']);
-        }
+        $range = DateRange::fromQuery($query, $today, $today);
 
         $statuses = isset($query['status']) ? array_values(array_unique(explode(',', strtoupper($query['status'])))) : [];
         if (array_diff($statuses, self::STATUSES) !== []) {
@@ -55,7 +47,7 @@ final class OrdersService
         $pagination = Pagination::fromQuery($query);
 
         $result = $this->orders->list(
-            ['from' => $from, 'to' => $to, 'statuses' => $statuses, 'channel' => $channel, 'ascending' => $sort === 'asc'],
+            ['from' => $range->from, 'to' => $range->to, 'statuses' => $statuses, 'channel' => $channel, 'ascending' => $sort === 'asc'],
             $pagination->perPage, $pagination->offset());
         $items = $this->orders->itemsFor(array_map(static fn (array $row): int => (int) $row['id'], $result['rows']));
         $data = array_map(fn (array $row): array => self::toPublic($row, $items[(int) $row['id']] ?? []), $result['rows']);
@@ -86,7 +78,7 @@ final class OrdersService
         if ($customerName === false) {
             $errors['customer_name'] = 'Máximo 120 caracteres.';
         }
-        $customerPhone = self::customerPhone($input['customer_phone'] ?? null);
+        $customerPhone = Validation::looseOptionalPhone($input['customer_phone'] ?? null);
         if ($customerPhone === false) {
             $errors['customer_phone'] = 'Número de 7 a 15 dígitos, con "+" opcional.';
         }
@@ -143,7 +135,7 @@ final class OrdersService
                 return $order;
             });
         } catch (Throwable $e) {
-            if (Idempotency::isUniqueViolation($e, 'orders_idempotency_key_key')) {
+            if (Db::isUniqueViolation($e, 'orders_idempotency_key_key')) {
                 $existing = $this->orders->findByIdempotencyKey($key) ?? throw $e;
                 return $this->replay($existing, $channel, $items);
             }
@@ -251,7 +243,7 @@ final class OrdersService
                 return Db::transaction($this->db, fn (): int => $this->orders->insert($order));
             } catch (PDOException $e) {
                 if ($attempt >= self::DAILY_NUMBER_ATTEMPTS
-                    || !Idempotency::isUniqueViolation($e, 'orders_business_date_daily_number_key')) {
+                    || !Db::isUniqueViolation($e, 'orders_business_date_daily_number_key')) {
                     throw $e;
                 }
             }
@@ -398,28 +390,6 @@ final class OrdersService
             throw new ApiException('DISCOUNT_EXCEEDS_SUBTOTAL', 'El descuento no puede superar el subtotal.', 422,
                 ['subtotal' => Money::fromCents($subtotal)]);
         }
-    }
-
-    /** Clientes de WhatsApp pueden tener número extranjero: no se exige +591. */
-    private static function customerPhone(mixed $value): string|null|false
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-        if (!is_string($value)) {
-            return false;
-        }
-        $phone = preg_replace('/[\s-]/', '', $value);
-        return preg_match('/^\+?\d{7,15}$/', $phone) ? $phone : false;
-    }
-
-    private static function date(mixed $value, string $field): string
-    {
-        if (!is_string($value) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)
-            || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
-            throw ApiException::validation([$field => 'Fecha YYYY-MM-DD.']);
-        }
-        return $value;
     }
 
     private static function auditItems(array $order): array

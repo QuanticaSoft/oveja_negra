@@ -125,6 +125,7 @@ erDiagram
 - Cancelar un pedido anula sus pagos y crea un `EGRESO` con `is_reversal = true` por cada ingreso.
   El resultado se calcula como `ingresos − egresos`, así que lo cancelado neto es 0.
 - Compra confirmada = un `EGRESO` (PURCHASE) + una `ENTRADA_COMPRA` por ítem, en la misma transacción.
+  Al anularla, el reverso del egreso va en la misma `purchase_date`; el de un pago, en el día de la anulación.
 
 ## Etapa 2 (preparado, no implementado)
 

@@ -33,6 +33,12 @@ final class Db
         return self::$pdo = $pdo;
     }
 
+    /** Violación del UNIQUE (o índice único) con ese nombre. */
+    public static function isUniqueViolation(Throwable $e, string $constraint): bool
+    {
+        return $e instanceof PDOException && $e->getCode() === '23505' && str_contains($e->getMessage(), $constraint);
+    }
+
     private static int $savepointDepth = 0;
 
     /**
