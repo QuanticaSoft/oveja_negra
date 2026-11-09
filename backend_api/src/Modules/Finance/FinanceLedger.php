@@ -35,22 +35,23 @@ final class FinanceLedger
     }
 
     /**
-     * Asienta el reverso (tipo contrario, mismo importe) en el día operativo de la anulación:
-     * así la caja de cada día refleja el dinero que de verdad entró o salió ese día.
+     * Asienta el reverso (tipo contrario, mismo importe). $businessDate null = día operativo de la
+     * anulación (pagos: la caja de cada día refleja el dinero que entró o salió ese día); las compras
+     * pasan su purchase_date, porque anular una compra corrige la carga de ese día.
      */
-    public function reverse(string $sourceType, int $sourceId, string $description, int $createdBy): int
+    public function reverse(string $sourceType, int $sourceId, string $description, int $createdBy, ?string $businessDate = null): int
     {
         $stmt = $this->db->prepare(
             "INSERT INTO financial_transactions
                  (type, category, description, amount, business_date, source_type, source_id,
                   is_reversal, reverses_id, created_by)
              SELECT CASE type WHEN 'INGRESO' THEN 'EGRESO' ELSE 'INGRESO' END, category, ?, amount,
-                    business_date_of(now(), ?::interval), source_type, source_id, true, id, ?
+                    COALESCE(?::date, business_date_of(now(), ?::interval)), source_type, source_id, true, id, ?
              FROM financial_transactions
              WHERE source_type = ? AND source_id = ? AND NOT is_reversal
              RETURNING id"
         );
-        $stmt->execute([$description, $this->dayCutoff, $createdBy, $sourceType, $sourceId]);
+        $stmt->execute([$description, $businessDate, $this->dayCutoff, $createdBy, $sourceType, $sourceId]);
         $id = $stmt->fetchColumn();
         if ($id === false) {
             throw new LogicException("No hay movimiento financiero que revertir para {$sourceType} {$sourceId}.");

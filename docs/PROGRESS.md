@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 5 (ventas y pedidos):** cerrada, integrada (PR #8) y desplegada en staging.
+**Fase 6 (compras, insumos e inventario):** lista en `feature/f6-compras-inventario`, pendiente de PR y de staging.
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -86,5 +86,17 @@
   y pagos responden 401 sin sesión y DELETE da 405. El flujo con sesión en staging lo prueba el usuario
   (solo él tiene la contraseña del ADMIN).
 
+- 2026-11-08: Fase 6 (API `0.6.0`), sin migraciones ni dependencias nuevas:
+  - Proveedores, categorías de insumo, unidades e insumos (stock mínimo, unidad bloqueada si hay movimientos).
+  - Compras con Idempotency-Key en una transacción: entrada por ítem, costo promedio ponderado y
+    `EGRESO` en su fecha.
+  - Anulación con reverso de stock, costo y egreso (en la fecha de la compra); se rechaza si lo comprado ya se usó.
+  - Ajustes (±, con motivo) y consumos manuales; kardex y stock bajo; nunca stock negativo.
+  - `InventoryLedger`; `Quantity`, `DateRange` y `Validation::date/quantity/looseOptionalPhone` en Core.
+  - Demo: 6 categorías de insumo, 9 insumos y un proveedor.
+  - 112 tests en verde. Se verificó que los tests de costo promedio fallan si se rompe la fórmula.
+  - Prueba de punta a punta por HTTP en dev.
+
 ## Próximo
-- Fase 6 (compras, insumos e inventario), previa aprobación.
+- PR `feature/f6-compras-inventario` → `develop` y, con OK del usuario, `deploy.sh staging` y `seed.sh staging`.
+- Fase 7 (gastos, finanzas, dashboard y reportes), previa aprobación.

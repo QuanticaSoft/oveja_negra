@@ -47,6 +47,28 @@ $router->post('/v1/orders/{id}/cancel', [OrdersController::class, 'cancel'], 'or
 $router->post('/v1/orders/{id}/payments', [OrdersController::class, 'createPayment'], 'payments.create');
 $router->post('/v1/payments/{id}/void', [OrdersController::class, 'voidPayment'], 'payments.void');
 
+// Compras, proveedores e insumos
+$router->get('/v1/suppliers', [PurchasingController::class, 'suppliers'], 'suppliers.manage');
+$router->post('/v1/suppliers', [PurchasingController::class, 'createSupplier'], 'suppliers.manage');
+$router->patch('/v1/suppliers/{id}', [PurchasingController::class, 'updateSupplier'], 'suppliers.manage');
+$router->get('/v1/units', [InventoryController::class, 'units'], 'ingredients.read');
+$router->get('/v1/ingredient-categories', [InventoryController::class, 'categories'], 'ingredients.read');
+$router->post('/v1/ingredient-categories', [InventoryController::class, 'createCategory'], 'ingredients.manage');
+$router->get('/v1/ingredients', [InventoryController::class, 'index'], 'ingredients.read');
+$router->post('/v1/ingredients', [InventoryController::class, 'create'], 'ingredients.manage');
+$router->get('/v1/ingredients/{id}', [InventoryController::class, 'show'], 'ingredients.read');
+$router->patch('/v1/ingredients/{id}', [InventoryController::class, 'update'], 'ingredients.manage');
+$router->patch('/v1/ingredients/{id}/status', [InventoryController::class, 'setStatus'], 'ingredients.manage');
+$router->get('/v1/purchases', [PurchasingController::class, 'purchases'], 'purchases.read');
+$router->post('/v1/purchases', [PurchasingController::class, 'createPurchase'], 'purchases.create');
+$router->get('/v1/purchases/{id}', [PurchasingController::class, 'purchase'], 'purchases.read');
+$router->post('/v1/purchases/{id}/void', [PurchasingController::class, 'voidPurchase'], 'purchases.void');
+
+// Inventario
+$router->get('/v1/inventory/movements', [InventoryController::class, 'movements'], 'inventory.read');
+$router->post('/v1/inventory/adjustments', [InventoryController::class, 'adjust'], 'inventory.adjust');
+$router->post('/v1/inventory/consumptions', [InventoryController::class, 'consume'], 'inventory.consume');
+
 // Roles y permisos
 $router->get('/v1/roles', [RolesController::class, 'index'], 'roles.manage');
 $router->get('/v1/permissions', [RolesController::class, 'permissions'], 'roles.manage');

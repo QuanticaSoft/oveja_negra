@@ -277,10 +277,4 @@ final class OrdersServiceTest extends DbTestCase
     {
         return (int) $this->scalar('INSERT INTO products (category_id, name, price) VALUES (?, ?, ?) RETURNING id', [$categoryId, $name, $price]);
     }
-
-    private static function uuid(): string
-    {
-        $hex = bin2hex(random_bytes(16));
-        return sprintf('%s-%s-4%s-a%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 13, 3), substr($hex, 17, 3), substr($hex, 20, 12));
-    }
 }

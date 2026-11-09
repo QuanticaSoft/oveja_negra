@@ -176,18 +176,70 @@ anularlo se genera un `EGRESO` de reverso en el día de la anulación. Un pedido
 
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET / POST | `/v1/suppliers` · PATCH `/v1/suppliers/{id}` | `suppliers.manage` |
+| GET | `/v1/suppliers?active` | `suppliers.manage` |
+| POST | `/v1/suppliers` `{name, phone?, notes?}` → 201 | `suppliers.manage` |
+| PATCH | `/v1/suppliers/{id}` `{name?, phone?, notes?, is_active?}` | `suppliers.manage` |
 | GET | `/v1/units` · `/v1/ingredient-categories` | `ingredients.read` |
-| POST | `/v1/ingredient-categories` | `ingredients.manage` |
-| GET | `/v1/ingredients?category_id&active&low_stock` | `ingredients.read` |
-| POST / PATCH | `/v1/ingredients` · `/v1/ingredients/{id}` | `ingredients.manage` |
-| PATCH | `/v1/ingredients/{id}/status` | `ingredients.manage` |
-| POST | `/v1/purchases` (Idempotency-Key) | `purchases.create` |
-| GET | `/v1/purchases?from&to&supplier_id` · `/v1/purchases/{id}` | `purchases.read` |
+| POST | `/v1/ingredient-categories` `{name}` → 201 | `ingredients.manage` |
+| GET | `/v1/ingredients?category_id&active&low_stock&q&page&per_page` · `/v1/ingredients/{id}` | `ingredients.read` |
+| POST | `/v1/ingredients` `{name, category_id, unit_id, min_stock?}` → 201 | `ingredients.manage` |
+| PATCH | `/v1/ingredients/{id}` `{name?, category_id?, unit_id?, min_stock?}` | `ingredients.manage` |
+| PATCH | `/v1/ingredients/{id}/status` `{is_active}` | `ingredients.manage` |
+| POST | `/v1/purchases` (Idempotency-Key) → 201, o 200 si es un reintento | `purchases.create` |
+| GET | `/v1/purchases?from&to&supplier_id&status&page&per_page` · `/v1/purchases/{id}` | `purchases.read` |
 | POST | `/v1/purchases/{id}/void` `{reason}` | `purchases.void` |
-| GET | `/v1/inventory/movements?ingredient_id&type&from&to` | `inventory.read` |
-| POST | `/v1/inventory/adjustments` `{ingredient_id, quantity (±), reason}` | `inventory.adjust` |
-| POST | `/v1/inventory/consumptions` `{items:[{ingredient_id, quantity}], reason}` | `inventory.consume` |
+| GET | `/v1/inventory/movements?ingredient_id&type&from&to&page&per_page` | `inventory.read` |
+| POST | `/v1/inventory/adjustments` `{ingredient_id, quantity (±), reason}` → 201 | `inventory.adjust` |
+| POST | `/v1/inventory/consumptions` `{items: [{ingredient_id, quantity}], reason}` → 201 | `inventory.consume` |
+
+Por defecto, ENCARGADO y ADMIN tienen todos estos permisos; CAJERO, ninguno.
+
+- **Cantidades** con hasta 3 decimales, como texto (`"6.500"`), en la unidad del insumo. Se acepta
+  `"6.5"`, `6.5` o `6`.
+- **Insumo:** `{id, name, category: {id, name}, unit: {id, code, name}, current_stock, min_stock,
+  avg_unit_cost, is_low_stock, is_active, created_at, updated_at}`.
+  - `current_stock` y `avg_unit_cost` solo cambian con movimientos; enviarlos en un PATCH da 400.
+  - `is_low_stock` es `true` cuando el insumo está activo y `current_stock ≤ min_stock`; `low_stock=true` filtra esos insumos.
+  - La unidad solo se cambia si el insumo no tiene movimientos (409 `UNIT_LOCKED`).
+
+**Compras:**
+```json
+{"purchase_date": "2026-11-08", "supplier_id": 13, "receipt_number": "F-001", "payment_method": "EFECTIVO",
+ "items": [{"ingredient_id": 118, "quantity": "6.5", "unit_price": "48.50"}]}
+```
+- `purchase_date` es la fecha de la boleta: cualquier fecha pasada, nunca futura (hora de La Paz).
+  `supplier_id` es opcional. Se admiten de 1 a 100 insumos distintos y el precio unitario va de 0 a 1 000 000.
+- `line_total = round(cantidad × precio, 2)`; el total debe ser mayor que 0 (422 `PURCHASE_TOTAL_ZERO`).
+- En una transacción: una `ENTRADA_COMPRA` por ítem, el stock, el **costo promedio ponderado**
+  `(stock·prom + q·precio) / (stock + q)` y un `EGRESO` (`COMPRA_INSUMOS`) con `business_date = purchase_date`.
+- `Idempotency-Key`: igual que en los pedidos. Si la misma clave llega con otra fecha, otro proveedor u
+  otros ítems, o de otro usuario, responde 409 `IDEMPOTENCY_KEY_REUSED`.
+- Respuesta: `{id, purchase_date, supplier: null | {id, name}, receipt_number, payment_method,
+  items: [{id, ingredient: {id, name, unit}, quantity, unit_price, line_total}], total, status,
+  created_by, voided: null | {by, at, reason}, created_at, updated_at}`. El listado cubre por defecto
+  los últimos 30 días.
+- **Anular** crea un `REVERSO` por ítem, descuenta el stock y revierte el costo promedio. Si el stock
+  queda en 0, conserva el último costo. El reverso del egreso se asienta **en la fecha de la compra**. Si
+  lo comprado ya se usó, responde 409 `INSUFFICIENT_STOCK`: primero hay que registrar un ajuste.
+
+**Inventario:**
+- Movimiento: `{id, ingredient: {id, name, unit}, type, quantity (con signo), unit_cost, stock_after,
+  source: null | {type, id}, reason, created_by, created_at}`.
+- `type` = `ENTRADA_COMPRA` | `SALIDA_CONSUMO` | `AJUSTE` | `REVERSO`.
+- `from`/`to` son días operativos; por defecto los últimos 30 días; máximo 92.
+- Un ajuste es positivo o negativo y exige motivo. No cambia el costo promedio.
+- Un consumo registra todas sus salidas o ninguna.
+- Ajustes y consumos **no llevan Idempotency-Key**: si se duplican, se ve en el kardex y se corrige con
+  otro ajuste.
+
+| Error | HTTP | Cuándo |
+|---|---|---|
+| `INSUFFICIENT_STOCK` | 409 | Un consumo, ajuste o anulación dejaría stock negativo; `details.ingredients = [{ingredient_id, name, unit, stock, required}]` |
+| `INGREDIENT_INACTIVE` | 409 | Compra o consumo con un insumo desactivado; `details.ingredients` |
+| `SUPPLIER_INACTIVE` | 409 | Compra con un proveedor desactivado |
+| `PURCHASE_ALREADY_VOIDED` | 409 | Anular dos veces |
+| `UNIT_LOCKED` | 409 | Cambiar la unidad de un insumo con movimientos |
+| `SUPPLIER_NAME_TAKEN` · `INGREDIENT_NAME_TAKEN` · `INGREDIENT_CATEGORY_NAME_TAKEN` | 409 | Nombre repetido (sin distinguir mayúsculas) |
 
 ## Gastos y finanzas
 
