@@ -82,6 +82,10 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Lo que se muestra depende de `user.can('permiso')`, nunca del nombre del rol. Una sección nueva se
   agrega en `app/destinations.dart` con su permiso.
 - Tests: dobles a mano en `test/support/fakes.dart` (`FakeAdapter` para Dio, `MemoryRefreshTokenStorage`).
+  Pantallas completas con sesión: `pumpLoggedIn()` de `test/support/app_harness.dart` (reemplaza
+  `httpAdapterProvider`).
+- Lo que se agrega al carrito o se cobra pasa por `CartController`/`IdempotentOperation`; nunca generar
+  una `IdempotencyKey` nueva en un reintento.
 
 ## Backend: convenciones del código
 - Sin namespaces: el autoloader de `src/bootstrap.php` busca `src/Core/<Clase>.php` y

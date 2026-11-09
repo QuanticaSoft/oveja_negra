@@ -15,17 +15,29 @@ BaseOptions _options() => BaseOptions(
       responseType: ResponseType.json,
     );
 
+/// Adaptador HTTP de las dos instancias de Dio. null = el real; los tests ponen uno en memoria.
+final httpAdapterProvider = Provider<HttpClientAdapter?>((ref) => null);
+
+Dio _dio(Ref ref) {
+  final dio = Dio(_options());
+  final adapter = ref.watch(httpAdapterProvider);
+  if (adapter != null) {
+    dio.httpClientAdapter = adapter;
+  }
+  return dio;
+}
+
 final refreshTokenStorageProvider = Provider<RefreshTokenStorage>((ref) => const SecureRefreshTokenStorage());
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore(ref.watch(refreshTokenStorageProvider)));
 
 /// Sin interceptor de sesión: para login, refresh y logout.
-final publicDioProvider = Provider<Dio>((ref) => Dio(_options()));
+final publicDioProvider = Provider<Dio>(_dio);
 
 /// Para todo lo que requiere sesión. El interceptor avisa al [SessionController] cuando la sesión
 /// se renueva (permisos actualizados) o termina (la app vuelve al login).
 final apiDioProvider = Provider<Dio>((ref) {
-  final dio = Dio(_options());
+  final dio = _dio(ref);
   final interceptor = AuthInterceptor(
     tokens: ref.watch(tokenStoreProvider),
     refresh: (refreshToken) => AuthApi(ref.read(publicDioProvider), dio).refresh(refreshToken),

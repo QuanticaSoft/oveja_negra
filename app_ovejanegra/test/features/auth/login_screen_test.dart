@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +20,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         refreshTokenStorageProvider.overrideWithValue(storage),
-        publicDioProvider.overrideWith((ref) => Dio(BaseOptions(baseUrl: 'http://api.test/v1'))..httpClientAdapter = adapter),
+        httpAdapterProvider.overrideWithValue(adapter),
       ],
       child: const OvejaNegraApp(),
     ));
@@ -39,6 +38,9 @@ void main() {
       }
       if (o.path == '/auth/logout') {
         return (200, {'data': null});
+      }
+      if (o.path == '/menu') {
+        return (200, {'data': []});
       }
       return (404, errorJson('NOT_FOUND'));
     });
@@ -71,9 +73,11 @@ void main() {
     await tester.tap(find.byKey(const Key('login.submit')));
     await tester.pumpAndSettle();
 
-    expect((adapter.requests.last.data as Map)['identifier'], 'caja1');
+    expect((adapter.requests.firstWhere((r) => r.path == '/auth/login').data as Map)['identifier'], 'caja1');
     expect(storage.value, 'r1');
-    expect(find.text('Disponible en la parte 8b de la Fase 8.'), findsOneWidget);
+    // El CAJERO entra directo a Nueva venta.
+    expect(find.text('Nueva venta'), findsOneWidget);
+    expect(find.text('La cartilla no tiene productos activos.'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();

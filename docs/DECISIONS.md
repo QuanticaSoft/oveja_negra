@@ -2,6 +2,17 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-08: App: vista de cocina con actualización cada 20 s
+El backend PHP-FPM no tiene conexión en tiempo real, así que la lista de pedidos se vuelve a pedir
+cada 20 s mientras está a la vista (y al deslizar hacia abajo). Es una consulta liviana por dispositivo.
+(Aprobado por el usuario.) La impresión de comandas queda fuera del MVP.
+
+## 2026-11-08: App: la clave de idempotencia depende del contenido
+`IdempotentOperation` reutiliza la misma clave mientras el cuerpo a enviar no cambie (reintento, doble
+toque) y genera otra si cambia; si no, el servidor respondería 409 `IDEMPOTENCY_KEY_REUSED`. En un
+cobro mixto cada pago conserva su clave hasta que se registran todos: si falla el segundo, reintentar no
+duplica el primero. Lo que el cliente entrega en efectivo solo sirve para el vuelto en pantalla.
+
 ## 2026-11-08: App: un solo refresh a la vez y access token solo en memoria
 `AuthInterceptor` comparte un único refresh entre todas las peticiones que reciben 401 a la vez, y
 las reintenta con el token nuevo. **Por qué:** el refresh token es de un solo uso y reusarlo revoca

@@ -1,7 +1,7 @@
 # Progreso
 
 ## Estado actual
-**Fase 8a (app: base y login):** lista en `feature/f8a-app-base`, pendiente de PR. El backend del MVP está completo (API `0.7.0`, en staging).
+**Fase 8b (app: ventas):** lista en `feature/f8b-app-ventas`, pendiente de PR. 8a integrada (PR #14). Backend del MVP completo (API `0.7.0`, en staging).
 
 ## Hecho
 - 2026-11-07: repo creado; `main` y `develop` publicados en GitHub (`QuanticaSoft/oveja_negra`).
@@ -133,5 +133,30 @@
   - Build en el emulador Pixel 6a: la app llega al API de dev (intento registrado en `auth_attempts`).
   - Docs: `ARCHITECTURE.md` decía que dev usa el puerto 8080; es el 8082.
 
+- 2026-11-08: Fase 8a integrada (PR #14).
+- 2026-11-08: Fase 8b (app `0.8.1+2`, dependencia nueva aprobada: `image_picker ^1.2.4`, de flutter.dev):
+  - **Nueva venta:**
+    - Cartilla en grilla con fotos; los agotados no se pueden tocar.
+    - Carrito fijo a la derecha en tablet y desplegable en teléfono.
+    - Canal, cliente (WhatsApp), notas y descuento (con permiso).
+    - Cobro efectivo, QR o mixto, con vuelto en pantalla (no se envía), o "Guardar sin cobrar".
+    - Confirmación con el #N.
+  - **Pedidos:** vista de cocina (abiertos de hoy, filtros, se actualiza cada 20 s) y detalle con
+    acciones según permisos: avanzar el estado (ENTREGADO bloqueado con saldo), cobrar, editar ítems,
+    cancelar y anular pagos con motivo.
+  - **Cartilla:** interruptor de agotado (`products.availability`).
+  - **Productos:** alta y edición, cambio de precio con historial, activar o desactivar, y foto desde la
+    galería o la cámara. Categorías: alta, edición, orden y activación.
+  - **Idempotencia:** la clave depende del contenido (`IdempotentOperation`). En un cobro mixto, cada
+    pago conserva su clave hasta que se registran todos.
+  - `httpAdapterProvider` permite probar pantallas completas contra un servidor falso.
+  - `flutter analyze` limpio y 30 tests. Se verificó que el test del reintento falla si cada intento
+    genera una clave nueva.
+  - Errores encontrados y corregidos:
+    - En el cobro mixto, reintentar después de que fallara el segundo pago duplicaba el primero.
+    - El indicador de carga seguía girando detrás de la confirmación.
+    - Los controladores de texto podían crearse durante el `dispose`.
+  - Emulador: la app abre en Nueva venta con la cartilla y las fotos de la demo, servidas por el API de dev.
+
 ## Próximo
-- PR `feature/f8a-app-base` → `develop`. Después, plan detallado de la 8b (ventas) para aprobar.
+- PR `feature/f8b-app-ventas` → `develop`. Después, plan de la 8c (compras e inventario) para aprobar.
