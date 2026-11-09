@@ -98,11 +98,13 @@ void main() {
     storage.value = 'r0';
     adapter = FakeAdapter((o) async => o.path == '/auth/refresh'
         ? (200, sessionJson('a1', 'r1', permissions: ['dashboard.read', 'reports.read']))
-        : (404, errorJson('NOT_FOUND')));
+        : o.path == '/dashboard'
+            ? (200, {'data': dashboardJson()})
+            : (404, errorJson('NOT_FOUND')));
     await pumpApp(tester, size: const Size(1280, 800));
     expect(find.byIcon(Icons.menu), findsNothing);
     expect(find.text('Reportes'), findsOneWidget);
-    expect(find.text('Disponible en la parte 8d de la Fase 8.'), findsOneWidget);
+    expect(find.text('Resultado operativo'), findsOneWidget, reason: 'abre el dashboard');
     expect(storage.value, 'r1', reason: 'restaurar la sesión rota el refresh token');
   });
 }

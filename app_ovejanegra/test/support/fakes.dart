@@ -172,3 +172,40 @@ Map<String, dynamic> purchaseJson({int id = 9, String status = 'CONFIRMADA'}) =>
       'created_at': '2026-11-08T10:00:00-04:00',
       'updated_at': '2026-11-08T10:00:00-04:00',
     };
+
+Map<String, dynamic> dashboardJson({String result = '-64.00', String collected = '51.00'}) => {
+      'from': '2026-11-08',
+      'to': '2026-11-08',
+      'finance': {
+        'from': '2026-11-08',
+        'to': '2026-11-08',
+        'sales_collected': {'total': collected, 'cash': '30.00', 'qr': '21.00'},
+        'purchases': '100.00',
+        'expenses': {
+          'total': '15.00',
+          'by_category': [
+            {'category': {'id': 1, 'name': 'Gas'}, 'total': '15.00'},
+          ],
+        },
+        'operating_result': result,
+      },
+      'orders': {
+        'count': 2,
+        'sold': '76.50',
+        'average_ticket': '38.25',
+        'cancelled': 1,
+        'by_channel': [
+          {'channel': 'LOCAL', 'orders': 2, 'sold': '76.50'},
+        ],
+        'by_status': {'PENDIENTE': 1, 'EN_PREPARACION': 0, 'LISTO': 0, 'ENTREGADO': 1, 'CANCELADO': 1},
+      },
+      'top_products': [
+        {'product': {'id': 10, 'name': 'Clásica'}, 'quantity': 3, 'total': '76.50'},
+      ],
+      'low_stock': {
+        'count': 1,
+        'ingredients': [
+          {'id': 3, 'name': 'Carne molida', 'unit': 'kg', 'current_stock': '4.500', 'min_stock': '5.000'},
+        ],
+      },
+    };

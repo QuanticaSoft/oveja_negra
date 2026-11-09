@@ -28,21 +28,39 @@ class AppShell extends ConsumerWidget {
     final wide = MediaQuery.sizeOf(context).width >= wideBreakpoint;
 
     Widget menu({required bool closeOnTap}) {
-      final selected = location == accountPath ? items.length : items.indexWhere((d) => d == current);
-      return NavigationDrawer(
-        selectedIndex: selected < 0 ? null : selected,
-        onDestinationSelected: (index) {
-          if (closeOnTap) {
-            Navigator.of(context).pop();
-          }
-          context.go(index < items.length ? items[index].path : accountPath);
-        },
-        children: [
-          _MenuHeader(name: user.fullName, role: user.role),
-          for (final d in items) NavigationDrawerDestination(icon: Icon(d.icon), label: Text(d.label)),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8), child: Divider(color: Color(0xFF333333))),
-          const NavigationDrawerDestination(icon: Icon(Icons.person_outline), label: Text('Mi cuenta')),
-        ],
+      void open(String path) {
+        if (closeOnTap) {
+          Navigator.of(context).pop();
+        }
+        context.go(path);
+      }
+
+      // ListTile (y no NavigationDrawerDestination) para que una etiqueta larga se recorte con "…"
+      // en vez de desbordar cuando el texto del sistema está agrandado.
+      Widget item(IconData icon, String label, String path, bool selected) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            child: ListTile(
+              selected: selected,
+              leading: Icon(icon),
+              title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+              iconColor: AppColors.white,
+              textColor: AppColors.white,
+              selectedColor: AppColors.black,
+              selectedTileColor: AppColors.orange,
+              shape: const StadiumBorder(),
+              onTap: () => open(path),
+            ),
+          );
+
+      return Drawer(
+        child: SafeArea(
+          child: ListView(children: [
+            _MenuHeader(name: user.fullName, role: user.role),
+            for (final d in items) item(d.icon, d.label, d.path, d == current),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8), child: Divider(color: Color(0xFF333333))),
+            item(Icons.person_outline, 'Mi cuenta', accountPath, location == accountPath),
+          ]),
+        ),
       );
     }
 

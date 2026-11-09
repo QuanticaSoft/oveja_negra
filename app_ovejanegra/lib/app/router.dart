@@ -10,7 +10,8 @@ import '../features/auth/presentation/splash_screen.dart';
 import '../features/catalog/presentation/menu_screen.dart';
 import '../features/catalog/presentation/product_form_screen.dart';
 import '../features/catalog/presentation/products_screen.dart';
-import '../features/home/presentation/coming_soon_screen.dart';
+import '../features/finance/presentation/expenses_screen.dart';
+import '../features/finance/presentation/new_expense_screen.dart';
 import '../features/inventory/presentation/consumption_screen.dart';
 import '../features/inventory/presentation/ingredient_detail_screen.dart';
 import '../features/inventory/presentation/ingredient_form_screen.dart';
@@ -18,6 +19,9 @@ import '../features/inventory/presentation/inventory_screen.dart';
 import '../features/purchasing/presentation/new_purchase_screen.dart';
 import '../features/purchasing/presentation/purchase_detail_screen.dart';
 import '../features/purchasing/presentation/purchases_screen.dart';
+import '../features/reports/presentation/dashboard_screen.dart';
+import '../features/reports/presentation/reports_screen.dart';
+import '../features/users/presentation/users_screen.dart';
 import '../features/orders/presentation/edit_items_screen.dart';
 import '../features/orders/presentation/new_sale_screen.dart';
 import '../features/orders/presentation/order_detail_screen.dart';
@@ -85,8 +89,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          for (final destination in destinations.where((d) => d.part != null))
-            GoRoute(path: destination.path, builder: (_, _) => ComingSoonScreen(destination: destination)),
+          GoRoute(path: '/dashboard', builder: (_, _) => const DashboardScreen()),
+          GoRoute(
+            path: '/expenses',
+            builder: (_, _) => const ExpensesScreen(),
+            routes: [GoRoute(path: 'new', builder: (_, _) => const NewExpenseScreen())],
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (_, _) => const ReportsScreen(),
+            routes: [
+              GoRoute(path: 'sales-monthly', builder: (_, _) => const MonthlySalesReport()),
+              GoRoute(path: ':report', builder: (_, state) => RangeReport(report: state.pathParameters['report']!)),
+            ],
+          ),
+          GoRoute(path: '/users', builder: (_, _) => const UsersScreen()),
         ],
       ),
     ],

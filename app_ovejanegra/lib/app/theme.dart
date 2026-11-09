@@ -31,19 +31,6 @@ ThemeData buildTheme() {
       centerTitle: false,
     ),
     drawerTheme: const DrawerThemeData(width: 280, backgroundColor: AppColors.black),
-    navigationDrawerTheme: NavigationDrawerThemeData(
-      backgroundColor: AppColors.black,
-      indicatorColor: AppColors.orange,
-      labelTextStyle: WidgetStateProperty.resolveWith(
-        (states) => TextStyle(
-          color: states.contains(WidgetState.selected) ? AppColors.black : AppColors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      iconTheme: WidgetStateProperty.resolveWith(
-        (states) => IconThemeData(color: states.contains(WidgetState.selected) ? AppColors.black : AppColors.white),
-      ),
-    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
