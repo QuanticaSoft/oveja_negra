@@ -13,11 +13,10 @@ class DateRangeBar extends StatelessWidget {
   final ValueChanged<DayRange> onChanged;
 
   Future<void> _custom(BuildContext context) async {
-    final today = DayRange.today();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2026),
-      lastDate: today,
+      lastDate: DayRange.calendarToday(),
       initialDateRange: DateTimeRange(start: value.from, end: value.to),
     );
     if (picked == null) {

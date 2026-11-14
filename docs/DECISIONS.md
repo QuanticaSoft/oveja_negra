@@ -2,6 +2,14 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-09: Fechas de madrugada: jornada por defecto, rangos hasta el calendario
+Entre las 00:00 y las 04:00 la jornada (día operativo) es todavía la del día anterior, pero la fecha de
+calendario ya cambió. La app usaba la fecha de calendario por defecto en compras y gastos, mientras los
+reportes terminaban en la jornada: lo registrado de madrugada quedaba fuera de "Hoy" y "Últimos 7 días"
+(lo detectó el usuario en staging). Ahora compras y gastos tienen por defecto la **jornada**, como las
+ventas, y los rangos de fechas llegan hasta la **fecha de calendario**, así nunca excluyen nada
+registrado hoy. El servidor no cambia: sigue aceptando hasta la fecha de calendario.
+
 ## 2026-11-09: App: gráficos con `double` solo para dibujar
 `fl_chart` trabaja con `double`. Los importes llegan como centavos `int` y se convierten solo al dibujar
 las barras y la línea; los textos y totales que ve el usuario siguen saliendo del servidor.

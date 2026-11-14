@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/utils/date_range.dart';
 import '../../../core/utils/dates.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/async_view.dart';
@@ -50,12 +51,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   }
 
   Future<void> _pickDate() async {
-    final today = LaPaz.now();
+    // Los pedidos se agrupan por jornada (corte 04:00): "hoy" es la jornada en curso.
+    final today = DayRange.today();
     final picked = await showDatePicker(
       context: context,
       initialDate: _date ?? today,
       firstDate: DateTime(2026),
-      lastDate: today,
+      lastDate: DayRange.calendarToday(),
     );
     if (picked != null) {
       setState(() => _date = DateUtils.isSameDay(picked, today) ? null : picked);
