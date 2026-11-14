@@ -19,6 +19,8 @@ final productProvider = FutureProvider.autoDispose.family<Product, int>((ref, id
 final priceHistoryProvider =
     FutureProvider.autoDispose.family<List<PriceChange>, int>((ref, id) => ref.watch(catalogApiProvider).priceHistory(id));
 
+final extrasProvider = FutureProvider.autoDispose<List<Extra>>((ref) => ref.watch(catalogApiProvider).extras());
+
 /// Después de cambiar algo del catálogo, todo lo que lo muestra se vuelve a pedir.
 void refreshCatalog(WidgetRef ref) {
   ref
@@ -26,5 +28,6 @@ void refreshCatalog(WidgetRef ref) {
     ..invalidate(categoriesProvider)
     ..invalidate(productsProvider)
     ..invalidate(productProvider)
-    ..invalidate(priceHistoryProvider);
+    ..invalidate(priceHistoryProvider)
+    ..invalidate(extrasProvider);
 }

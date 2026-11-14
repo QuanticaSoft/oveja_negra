@@ -10,11 +10,14 @@ final class OrdersService
     private const STATUSES = [...self::STATUS_FLOW, 'CANCELADO'];
     private const MAX_LINES = 50;
     private const MAX_QUANTITY = 99;
+    private const MAX_EXTRAS_PER_LINE = 10;
+    private const MAX_EXTRA_QUANTITY = 5;
     private const DAILY_NUMBER_ATTEMPTS = 3;
 
     private readonly OrderRepository $orders;
     private readonly PaymentRepository $paymentRows;
     private readonly PaymentsService $payments;
+    private readonly InventoryLedger $inventory;
 
     public function __construct(
         private readonly PDO $db,
@@ -24,6 +27,7 @@ final class OrdersService
         $this->orders = new OrderRepository($db);
         $this->paymentRows = new PaymentRepository($db);
         $this->payments = new PaymentsService($db, $actor, $dayCutoff);
+        $this->inventory = new InventoryLedger($db);
     }
 
     /** @return array{data: list<array>, meta: array} */
@@ -104,7 +108,7 @@ final class OrdersService
 
         try {
             $order = Db::transaction($this->db, function () use ($key, $channel, $items, $discount, $customerName, $customerPhone, $notes, $payments): array {
-                [$lines, $subtotal] = $this->price($items);
+                [$lines, $subtotal, $consumption] = $this->price($items);
                 self::assertDiscountFits($discount, $subtotal);
                 $total = $subtotal - $discount;
                 if (array_sum(array_column($payments, 1)) > $total) {
@@ -124,8 +128,10 @@ final class OrdersService
                     'created_by' => $this->actor->id,
                     'idempotency_key' => $key,
                 ]);
+                $this->lockStockFor($consumption, $lines);
                 // Los ítems van antes que los pagos: el trigger bloquea los ítems de un pedido con pagos.
                 $this->orders->insertItems($orderId, $lines);
+                $this->consumeExtras($orderId);
                 foreach ($payments as [$method, $cents]) {
                     $this->payments->addToLockedOrder($this->orders->find($orderId), $method, $cents, null);
                 }
@@ -164,12 +170,16 @@ final class OrdersService
             if ($discount !== Money::toCents($order['discount'])) {
                 $this->requirePermission('orders.discount');
             }
-            [$lines, $subtotal] = $this->price($items);
+            [$lines, $subtotal, $consumption] = $this->price($items);
             self::assertDiscountFits($discount, $subtotal);
 
             $before = $this->detail($order);
+            // Primero vuelve al stock lo que descontaron los extras anteriores; luego se descuenta lo nuevo.
+            $this->reverseExtras($id, 'edición de ítems');
+            $this->lockStockFor($consumption, $lines);
             $this->orders->deleteItems($id);
             $this->orders->insertItems($id, $lines);
+            $this->consumeExtras($id);
             $this->orders->updateTotals($id, Money::fromCents($subtotal), Money::fromCents($discount),
                 Money::fromCents($subtotal - $discount));
             $after = $this->get($id);
@@ -228,6 +238,7 @@ final class OrdersService
             foreach ($this->paymentRows->forOrder($id, confirmedOnly: true) as $payment) {
                 $this->payments->voidLocked($payment, $order, "Pedido cancelado: {$reason}");
             }
+            $this->reverseExtras($id, 'cancelación');
             $this->orders->cancel($id, $this->actor->id, $reason);
             Audit::log($this->db, $this->actor->id, 'orders', $id, 'cancel',
                 ['status' => $order['status'], 'paid' => $order['paid']], ['status' => 'CANCELADO', 'reason' => $reason]);
@@ -251,36 +262,80 @@ final class OrdersService
     }
 
     /**
-     * Precios siempre desde la BD, nunca del cliente.
+     * Precios de productos y extras siempre desde la BD, nunca del cliente.
+     * line_total = (precio + Σ precio_extra · cantidad_extra) × cantidad.
      *
-     * @param list<array{0: int, 1: int}> $items [product_id, quantity]
-     * @return array{0: list<array>, 1: int} [líneas para order_items, subtotal en centavos]
+     * @param list<array{product_id: int, quantity: int, notes: ?string, extras: array<int, int>}> $items
+     * @return array{0: list<array>, 1: int, 2: array<int, int>}
+     *         [líneas para order_items, subtotal en centavos, milésimas a descontar por insumo]
      */
     private function price(array $items): array
     {
-        $products = $this->orders->productsForSale(array_column($items, 0));
+        $products = $this->orders->productsForSale(array_column($items, 'product_id'));
+        $extraIds = [];
+        foreach ($items as $item) {
+            array_push($extraIds, ...array_keys($item['extras']));
+        }
+        $extras = (new ExtraRepository($this->db))->forSale($extraIds);
+        $allowed = $this->orders->allowedExtras(array_map(static fn (array $p): int => (int) $p['category_id'], array_values($products)));
         $errors = [];
         $unavailable = [];
+        $unavailableExtras = [];
         $lines = [];
         $subtotal = 0;
-        foreach ($items as $index => [$productId, $quantity]) {
-            $product = $products[$productId] ?? null;
+        $consumption = [];
+        foreach ($items as $index => $item) {
+            $product = $products[$item['product_id']] ?? null;
             if ($product === null) {
                 $errors["items.{$index}.product_id"] = 'Producto inexistente.';
                 continue;
             }
             if (!$product['sellable']) {
-                $unavailable[] = ['id' => $productId, 'name' => $product['name']];
+                $unavailable[] = ['id' => $item['product_id'], 'name' => $product['name']];
                 continue;
             }
-            $lineCents = Money::toCents($product['price']) * $quantity;
+            $extrasUnit = 0;
+            $lineExtras = [];
+            foreach ($item['extras'] as $extraId => $extraQuantity) {
+                $extra = $extras[$extraId] ?? null;
+                if ($extra === null) {
+                    $errors["items.{$index}.extras"] = "Extra inexistente: {$extraId}.";
+                    continue;
+                }
+                if (!in_array($extraId, $allowed[(int) $product['category_id']] ?? [], true)) {
+                    $errors["items.{$index}.extras"] = "{$extra['name']} no se puede agregar a {$product['name']}.";
+                    continue;
+                }
+                if (!$extra['sellable']) {
+                    $unavailableExtras[$extraId] = ['id' => $extraId, 'name' => $extra['name']];
+                    continue;
+                }
+                $extrasUnit += Money::toCents($extra['price']) * $extraQuantity;
+                $lineExtras[] = [
+                    'extra_id' => $extraId,
+                    'name' => $extra['name'],
+                    'unit_price' => $extra['price'],
+                    'quantity' => $extraQuantity,
+                    'ingredient_id' => $extra['ingredient_id'] === null ? null : (int) $extra['ingredient_id'],
+                    'ingredient_quantity' => $extra['ingredient_quantity'],
+                ];
+                if ($extra['ingredient_id'] !== null) {
+                    $ingredientId = (int) $extra['ingredient_id'];
+                    $consumption[$ingredientId] = ($consumption[$ingredientId] ?? 0)
+                        + Quantity::toMilli($extra['ingredient_quantity']) * $extraQuantity * $item['quantity'];
+                }
+            }
+            $lineCents = (Money::toCents($product['price']) + $extrasUnit) * $item['quantity'];
             $subtotal += $lineCents;
             $lines[] = [
-                'product_id' => $productId,
+                'product_id' => $item['product_id'],
                 'name' => $product['name'],
                 'unit_price' => $product['price'],
-                'quantity' => $quantity,
+                'quantity' => $item['quantity'],
                 'line_total' => Money::fromCents($lineCents),
+                'notes' => $item['notes'],
+                'extras_unit_total' => Money::fromCents($extrasUnit),
+                'extras' => $lineExtras,
             ];
         }
         if ($errors !== []) {
@@ -290,20 +345,103 @@ final class OrdersService
             throw new ApiException('PRODUCT_UNAVAILABLE', 'Hay productos agotados o desactivados en el pedido.', 409,
                 ['products' => $unavailable]);
         }
-        return [$lines, $subtotal];
+        if ($unavailableExtras !== []) {
+            throw new ApiException('EXTRA_UNAVAILABLE', 'Hay extras agotados o desactivados en el pedido.', 409,
+                ['extras' => array_values($unavailableExtras)]);
+        }
+        return [$lines, $subtotal, $consumption];
+    }
+
+    /**
+     * Bloquea los insumos de los extras y verifica el stock antes de guardar nada.
+     *
+     * @param array<int, int> $consumption milésimas por insumo
+     */
+    private function lockStockFor(array $consumption, array $lines): void
+    {
+        if ($consumption === []) {
+            return;
+        }
+        try {
+            $this->inventory->lockAndCheck(array_map(static fn (int $milli): int => -$milli, $consumption));
+        } catch (ApiException $e) {
+            if ($e->errorCode !== 'INSUFFICIENT_STOCK') {
+                throw $e;
+            }
+            $short = array_column($e->details['ingredients'], 'ingredient_id');
+            $extras = [];
+            foreach ($lines as $line) {
+                foreach ($line['extras'] as $extra) {
+                    if (in_array($extra['ingredient_id'], $short, true)) {
+                        $extras[$extra['extra_id']] = ['id' => $extra['extra_id'], 'name' => $extra['name']];
+                    }
+                }
+            }
+            throw new ApiException('EXTRA_OUT_OF_STOCK', 'No hay stock suficiente para algunos extras.', 409, [
+                'extras' => array_values($extras),
+                'ingredients' => $e->details['ingredients'],
+            ]);
+        }
+    }
+
+    /** Una SALIDA_CONSUMO por cada extra con insumo (ya verificado y bloqueado por lockStockFor). */
+    private function consumeExtras(int $orderId): void
+    {
+        $number = $this->orders->find($orderId)['daily_number'];
+        foreach ($this->orders->extrasWithIngredient($orderId) as $extra) {
+            $this->inventory->move((int) $extra['ingredient_id'], 'SALIDA_CONSUMO', -Quantity::toMilli($extra['total_quantity']),
+                null, 'ORDER_ITEM_EXTRA', (int) $extra['id'], "Pedido #{$number}: extra {$extra['name_snapshot']}", $this->actor->id);
+        }
+    }
+
+    /** Devuelve al stock lo que descontaron los extras del pedido (REVERSO, sin tocar el costo promedio). */
+    private function reverseExtras(int $orderId, string $why): void
+    {
+        $extras = $this->orders->extrasWithIngredient($orderId);
+        if ($extras === []) {
+            return;
+        }
+        $this->inventory->lockAndCheck(array_fill_keys(array_map(static fn (array $e): int => (int) $e['ingredient_id'], $extras), 0));
+        $number = $this->orders->find($orderId)['daily_number'];
+        foreach ($extras as $extra) {
+            $this->inventory->move((int) $extra['ingredient_id'], 'REVERSO', Quantity::toMilli($extra['total_quantity']),
+                null, 'ORDER_ITEM_EXTRA', (int) $extra['id'], "Pedido #{$number}: {$why} (extra {$extra['name_snapshot']})", $this->actor->id);
+        }
     }
 
     /** Un reintento con la misma clave devuelve el pedido ya creado; con otro contenido es un error del cliente. */
     private function replay(array $existing, string $channel, array $items): array
     {
-        $stored = array_map(static fn (array $item): array => [(int) $item['product_id'], (int) $item['quantity']],
-            $this->orders->itemsFor([(int) $existing['id']])[(int) $existing['id']] ?? []);
-        sort($stored);
-        sort($items);
-        if ((int) $existing['created_by'] !== $this->actor->id || $existing['channel'] !== $channel || $stored !== $items) {
+        $stored = array_map(static fn (array $item): array => [
+            'product_id' => (int) $item['product_id'],
+            'quantity' => (int) $item['quantity'],
+            'notes' => $item['notes'],
+            'extras' => self::extrasMap($item['extras']),
+        ], $this->orders->itemsFor([(int) $existing['id']])[(int) $existing['id']] ?? []);
+        if ((int) $existing['created_by'] !== $this->actor->id || $existing['channel'] !== $channel
+            || self::fingerprint($stored) !== self::fingerprint($items)) {
             throw Idempotency::reused();
         }
         return ['order' => $this->detail($existing), 'created' => false];
+    }
+
+    /** Contenido comparable de los ítems, sin depender del orden. */
+    private static function fingerprint(array $items): array
+    {
+        $rows = array_map(static fn (array $i): string => json_encode([$i['product_id'], $i['quantity'], $i['notes'] ?? '', $i['extras']]), $items);
+        sort($rows);
+        return $rows;
+    }
+
+    /** @return array<int, int> extra_id => cantidad, ordenado por id */
+    private static function extrasMap(array $extras): array
+    {
+        $map = [];
+        foreach ($extras as $e) {
+            $map[(int) $e['extra_id']] = (int) $e['quantity'];
+        }
+        ksort($map);
+        return $map;
     }
 
     private function detail(array $row): array
@@ -326,7 +464,9 @@ final class OrdersService
     }
 
     /**
-     * @return list<array{0: int, 1: int}> [product_id, quantity]
+     * El mismo producto puede ir en varias líneas (con otros extras u otra nota).
+     *
+     * @return list<array{product_id: int, quantity: int, notes: ?string, extras: array<int, int>}>
      */
     private static function parseItems(mixed $items, array &$errors): array
     {
@@ -336,21 +476,50 @@ final class OrdersService
         }
         $parsed = [];
         foreach ($items as $index => $item) {
-            $productId = is_array($item) ? Validation::positiveInt($item['product_id'] ?? null) : null;
-            $quantity = is_array($item) ? ($item['quantity'] ?? null) : null;
+            $item = is_array($item) ? $item : [];
+            $productId = Validation::positiveInt($item['product_id'] ?? null);
+            $quantity = $item['quantity'] ?? null;
             if ($productId === null) {
                 $errors["items.{$index}.product_id"] = 'Requerido.';
-            } elseif (in_array($productId, array_column($parsed, 0), true)) {
-                $errors["items.{$index}.product_id"] = 'Producto repetido: suma la cantidad en una sola línea.';
             }
             if (!is_int($quantity) || $quantity < 1 || $quantity > self::MAX_QUANTITY) {
                 $errors["items.{$index}.quantity"] = 'Entero de 1 a ' . self::MAX_QUANTITY . '.';
             }
-            if ($productId !== null && is_int($quantity)) {
-                $parsed[] = [$productId, $quantity];
+            $notes = Validation::optionalText($item['notes'] ?? null, 200);
+            if ($notes === false) {
+                $errors["items.{$index}.notes"] = 'Máximo 200 caracteres.';
+            }
+            $extras = self::parseExtras($item['extras'] ?? [], "items.{$index}.extras", $errors);
+            if ($productId !== null && is_int($quantity) && $notes !== false) {
+                $parsed[] = ['product_id' => $productId, 'quantity' => $quantity, 'notes' => $notes, 'extras' => $extras];
             }
         }
         return $parsed;
+    }
+
+    /** @return array<int, int> extra_id => cantidad (1 a 5), ordenado por id */
+    private static function parseExtras(mixed $extras, string $field, array &$errors): array
+    {
+        if (!is_array($extras) || !array_is_list($extras) || count($extras) > self::MAX_EXTRAS_PER_LINE) {
+            $errors[$field] = 'Lista de hasta ' . self::MAX_EXTRAS_PER_LINE . ' extras.';
+            return [];
+        }
+        $map = [];
+        foreach ($extras as $extra) {
+            $extraId = is_array($extra) ? Validation::positiveInt($extra['extra_id'] ?? null) : null;
+            $quantity = is_array($extra) ? ($extra['quantity'] ?? 1) : null;
+            if ($extraId === null || !is_int($quantity) || $quantity < 1 || $quantity > self::MAX_EXTRA_QUANTITY) {
+                $errors[$field] = 'Cada extra: {extra_id, quantity de 1 a ' . self::MAX_EXTRA_QUANTITY . '}.';
+                continue;
+            }
+            if (isset($map[$extraId])) {
+                $errors[$field] = 'Extra repetido en la misma línea: usa su cantidad.';
+                continue;
+            }
+            $map[$extraId] = $quantity;
+        }
+        ksort($map);
+        return $map;
     }
 
     /** @return list<array{0: string, 1: int}> [método, centavos] */
@@ -395,7 +564,10 @@ final class OrdersService
     private static function auditItems(array $order): array
     {
         return [
-            'items' => array_map(static fn (array $item): array => [$item['product_id'], $item['quantity'], $item['unit_price']], $order['items']),
+            'items' => array_map(static fn (array $item): array => [
+                $item['product_id'], $item['quantity'], $item['unit_price'], $item['notes'],
+                array_map(static fn (array $e): array => [$e['extra_id'], $e['quantity'], $e['unit_price']], $item['extras']),
+            ], $order['items']),
             'subtotal' => $order['subtotal'],
             'discount' => $order['discount'],
             'total' => $order['total'],
@@ -421,6 +593,14 @@ final class OrdersService
                 'name' => $item['product_name_snapshot'],
                 'unit_price' => $item['unit_price_snapshot'],
                 'quantity' => (int) $item['quantity'],
+                'notes' => $item['notes'],
+                'extras' => array_map(static fn (array $e): array => [
+                    'extra_id' => (int) $e['extra_id'],
+                    'name' => $e['name_snapshot'],
+                    'unit_price' => $e['unit_price_snapshot'],
+                    'quantity' => (int) $e['quantity'],
+                ], $item['extras']),
+                'extras_unit_total' => $item['extras_unit_total'],
                 'line_total' => $item['line_total'],
             ], $items),
             'subtotal' => $row['subtotal'],

@@ -79,6 +79,36 @@ final class CatalogController
         Response::ok($this->productsService()->priceHistory(self::id($id)));
     }
 
+    public function extras(): never
+    {
+        Response::ok($this->extrasService()->list(['active' => Request::query('active')]));
+    }
+
+    public function createExtra(): never
+    {
+        Response::ok($this->extrasService()->create(Request::json()), 201);
+    }
+
+    public function updateExtra(string $id): never
+    {
+        Response::ok($this->extrasService()->update(self::id($id, 'Extra'), Request::json()));
+    }
+
+    public function setExtraAvailability(string $id): never
+    {
+        Response::ok($this->extrasService()->setAvailability(self::id($id, 'Extra'), Request::json()));
+    }
+
+    public function setCategoryExtras(string $id): never
+    {
+        Response::ok($this->extrasService()->setCategoryExtras(self::id($id, 'Categoría'), Request::json()));
+    }
+
+    private function extrasService(): ExtrasService
+    {
+        return new ExtrasService(App::db(), App::user());
+    }
+
     private function productsService(): ProductsService
     {
         return new ProductsService(App::db(), App::user(), new Media(App::config()));

@@ -2,18 +2,62 @@ import '../../../core/utils/money.dart';
 import '../../catalog/domain/catalog.dart';
 import 'order.dart';
 
+/// Un extra elegido para una línea (huevo ×2…), con el precio que mostraba la cartilla.
+class CartExtra {
+  const CartExtra({required this.extraId, required this.name, required this.priceCents, required this.quantity});
+
+  static const maxQuantity = 5;
+
+  final int extraId;
+  final String name;
+  final int priceCents;
+  final int quantity;
+
+  int get totalCents => priceCents * quantity;
+}
+
 class CartLine {
-  const CartLine({required this.productId, required this.name, required this.unitCents, required this.quantity});
+  const CartLine({
+    required this.productId,
+    required this.name,
+    required this.unitCents,
+    required this.quantity,
+    this.notes = '',
+    this.extras = const [],
+  });
 
   final int productId;
   final String name;
+
+  /// Precio del producto, sin extras.
   final int unitCents;
   final int quantity;
+  final String notes;
+  final List<CartExtra> extras;
 
-  int get lineCents => unitCents * quantity;
+  int get extrasUnitCents => extras.fold(0, (sum, e) => sum + e.totalCents);
+  int get lineCents => (unitCents + extrasUnitCents) * quantity;
+
+  /// Identifica la línea: el mismo producto con otros extras u otra nota es otra línea.
+  String get key {
+    final sorted = [...extras]..sort((a, b) => a.extraId.compareTo(b.extraId));
+    return '$productId|${notes.trim()}|${sorted.map((e) => '${e.extraId}x${e.quantity}').join(',')}';
+  }
+
+  /// "+ Huevo ×2, Queso" (vacío si no hay extras).
+  String get extrasLabel => extras.isEmpty
+      ? ''
+      : '+ ${extras.map((e) => e.quantity > 1 ? '${e.name} ×${e.quantity}' : e.name).join(', ')}';
 
   CartLine withQuantity(int quantity) =>
-      CartLine(productId: productId, name: name, unitCents: unitCents, quantity: quantity);
+      CartLine(productId: productId, name: name, unitCents: unitCents, quantity: quantity, notes: notes, extras: extras);
+
+  Map<String, dynamic> toApi() => {
+        'product_id': productId,
+        'quantity': quantity,
+        if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+        if (extras.isNotEmpty) 'extras': [for (final e in extras) {'extra_id': e.extraId, 'quantity': e.quantity}],
+      };
 }
 
 /// Pedido en armado. Inmutable y sin widgets: todos los cálculos en centavos `int`.
@@ -44,30 +88,30 @@ class Cart {
   bool get discountExceedsSubtotal => discountCents > subtotalCents;
   int get totalCents => discountExceedsSubtotal ? 0 : subtotalCents - discountCents;
 
+  /// Unidades de un producto en todas sus líneas (para el contador de la grilla).
   int quantityOf(int productId) =>
       lines.where((l) => l.productId == productId).fold(0, (sum, l) => sum + l.quantity);
 
-  Cart add(Product product) {
-    final index = lines.indexWhere((l) => l.productId == product.id);
+  /// Producto sin extras ni nota.
+  Cart add(Product product) =>
+      addLine(CartLine(productId: product.id, name: product.name, unitCents: product.priceCents, quantity: 1));
+
+  /// Agrega una línea; si ya hay una idéntica (mismo producto, extras y nota), suma la cantidad.
+  Cart addLine(CartLine line) {
+    final index = lines.indexWhere((l) => l.key == line.key);
     if (index < 0) {
-      if (lines.length >= maxLines) {
-        return this;
-      }
-      return _copy(lines: [
-        ...lines,
-        CartLine(productId: product.id, name: product.name, unitCents: product.priceCents, quantity: 1),
-      ]);
+      return lines.length >= maxLines ? this : _copy(lines: [...lines, line]);
     }
-    return setQuantity(product.id, lines[index].quantity + 1);
+    return setQuantity(line.key, lines[index].quantity + line.quantity);
   }
 
   /// 0 quita la línea; nunca pasa de [maxQuantity].
-  Cart setQuantity(int productId, int quantity) {
+  Cart setQuantity(String lineKey, int quantity) {
     if (quantity <= 0) {
-      return _copy(lines: [for (final l in lines) if (l.productId != productId) l]);
+      return _copy(lines: [for (final l in lines) if (l.key != lineKey) l]);
     }
     final capped = quantity > maxQuantity ? maxQuantity : quantity;
-    return _copy(lines: [for (final l in lines) l.productId == productId ? l.withQuantity(capped) : l]);
+    return _copy(lines: [for (final l in lines) l.key == lineKey ? l.withQuantity(capped) : l]);
   }
 
   Cart withChannel(Channel channel) => _copy(channel: channel);
@@ -81,13 +125,20 @@ class Cart {
         discountCents: order.discountCents,
         lines: [
           for (final i in order.items)
-            CartLine(productId: i.productId, name: i.name, unitCents: i.unitCents, quantity: i.quantity),
+            CartLine(
+              productId: i.productId,
+              name: i.name,
+              unitCents: i.unitCents,
+              quantity: i.quantity,
+              notes: i.notes ?? '',
+              extras: [
+                for (final e in i.extras) CartExtra(extraId: e.extraId, name: e.name, priceCents: e.unitCents, quantity: e.quantity),
+              ],
+            ),
         ],
       );
 
-  List<Map<String, dynamic>> itemsToApi() => [
-        for (final l in lines) {'product_id': l.productId, 'quantity': l.quantity},
-      ];
+  List<Map<String, dynamic>> itemsToApi() => [for (final l in lines) l.toApi()];
 
   /// Cuerpo de `POST /v1/orders`. Los campos vacíos no se envían.
   Map<String, dynamic> toApi(List<PaymentDraft> payments) => {

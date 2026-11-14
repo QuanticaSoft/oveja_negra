@@ -147,7 +147,13 @@ class OrderCard extends StatelessWidget {
               StatusPill.order(order.status),
             ]),
             const SizedBox(height: 6),
-            Text(order.items.map((i) => '${i.quantity}× ${i.name}').join(', '), maxLines: 3, overflow: TextOverflow.ellipsis),
+            // La cocina necesita ver cada ítem con sus extras y su nota.
+            for (final i in order.items)
+              Text.rich(TextSpan(children: [
+                TextSpan(text: '${i.quantity}× ${i.name}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                if (i.extras.isNotEmpty) TextSpan(text: '  ${i.extrasLabel}'),
+                if (i.notes != null) TextSpan(text: '  · ${i.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
+              ])),
             if (order.notes != null) Text('Nota: ${order.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
             const SizedBox(height: 8),
             Row(children: [

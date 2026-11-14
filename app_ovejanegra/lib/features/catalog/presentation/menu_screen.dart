@@ -32,6 +32,37 @@ class MenuScreen extends ConsumerWidget {
                 child: Text(section.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
               ),
               for (final product in section.products) _MenuItem(product: product, canToggle: canToggle),
+              if (section.extras.isNotEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Extras', style: TextStyle(fontWeight: FontWeight.w800)),
+                      Wrap(spacing: 8, runSpacing: 4, children: [
+                        for (final e in section.extras)
+                          FilterChip(
+                            key: Key('menu.extra.${e.id}'),
+                            label: Text('${e.name} +${Money.bob(e.priceCents)}'),
+                            selected: e.isAvailable,
+                            showCheckmark: true,
+                            tooltip: e.isAvailable ? 'Disponible' : 'Agotado o sin stock',
+                            onSelected: canToggle
+                                ? (v) async {
+                                    try {
+                                      await ref.read(catalogApiProvider).setExtraAvailability(e.id, v);
+                                      refreshCatalog(ref);
+                                    } on ApiException catch (err) {
+                                      if (context.mounted) {
+                                        showMessage(context, err.message);
+                                      }
+                                    }
+                                  }
+                                : null,
+                          ),
+                      ]),
+                    ]),
+                  ),
+                ),
             ],
           ],
         ),

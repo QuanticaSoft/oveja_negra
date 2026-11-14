@@ -83,7 +83,10 @@ erDiagram
 | Tabla | Columnas clave | Restricciones |
 |---|---|---|
 | `orders` | `business_date`, `daily_number`, `channel` (WHATSAPP, LOCAL), `status`, `subtotal`, `discount`, `total`, `customer_name` NULL, `customer_phone` NULL, `notes`, `created_by`, `cancelled_by`, `cancelled_at`, `cancel_reason`, `idempotency_key` | `(business_date, daily_number)` UNIQUE; `discount BETWEEN 0 AND subtotal`; `total = subtotal - discount`; `idempotency_key` UNIQUE |
-| `order_items` | `order_id`, `product_id`, `product_name_snapshot`, `unit_price_snapshot`, `quantity`, `line_total` | `quantity > 0`; `line_total = unit_price_snapshot * quantity` |
+| `order_items` | `order_id`, `product_id`, `product_name_snapshot`, `unit_price_snapshot`, `quantity`, `notes`, `extras_unit_total`, `line_total` | `quantity > 0`; `line_total = (unit_price_snapshot + extras_unit_total) * quantity` |
+| `order_item_extras` | `order_id`, `order_item_id`, `extra_id`, `name_snapshot`, `unit_price_snapshot`, `quantity`, `ingredient_id`, `ingredient_quantity` (snapshot) | `quantity 1..5`; UNIQUE `(order_item_id, extra_id)`; mismo trigger que `order_items` |
+| `extras` | `name`, `price`, `ingredient_id` NULL, `ingredient_quantity`, `sort_order`, `is_active`, `is_available` | `name` UNIQUE; insumo y cantidad juntos (ambos o ninguno); sin DELETE |
+| `category_extras` | `category_id`, `extra_id` | PK compuesta; qué extras acepta cada categoría |
 | `payments` | `order_id`, `method` (EFECTIVO, QR), `amount`, `status` (CONFIRMADO, ANULADO), `received_by`, `voided_by`, `idempotency_key` | `amount > 0`; `idempotency_key` UNIQUE |
 
 - `status` del pedido: PENDIENTE → EN_PREPARACION → LISTO → ENTREGADO, solo hacia adelante y con saltos
@@ -103,7 +106,7 @@ erDiagram
 | `ingredients` | `name`, `category_id`, `unit_id`, `current_stock`, `min_stock`, `avg_unit_cost`, `is_active` | `name` UNIQUE; `current_stock >= 0`; `min_stock >= 0` |
 | `purchases` | `purchase_date`, `supplier_id` NULL, `receipt_number` NULL, `payment_method`, `total`, `status` (CONFIRMADA, ANULADA), `created_by`, `voided_by`, `void_reason`, `idempotency_key` | `total >= 0`; `idempotency_key` UNIQUE |
 | `purchase_items` | `purchase_id`, `ingredient_id`, `quantity`, `unit_price` (Bs, 2 decimales), `line_total` | `quantity > 0`; `unit_price >= 0`; `line_total = round(quantity · unit_price, 2)` |
-| `inventory_movements` | `ingredient_id`, `type` (ENTRADA_COMPRA, SALIDA_CONSUMO, AJUSTE, REVERSO), `quantity` (con signo), `unit_cost`, `stock_after`, `source_type` (PURCHASE_ITEM, ORDER_ITEM) NULL, `source_id`, `reason`, `created_by` | UNIQUE `(source_type, source_id, type)` cuando `source_id` no es NULL; ENTRADA_COMPRA > 0 y con origen PURCHASE_ITEM; SALIDA_CONSUMO < 0; AJUSTE exige `reason`; índice `(ingredient_id, created_at)` |
+| `inventory_movements` | `ingredient_id`, `type` (ENTRADA_COMPRA, SALIDA_CONSUMO, AJUSTE, REVERSO), `quantity` (con signo), `unit_cost`, `stock_after`, `source_type` (PURCHASE_ITEM, ORDER_ITEM, ORDER_ITEM_EXTRA) NULL, `source_id`, `reason`, `created_by` | UNIQUE `(source_type, source_id, type)` cuando `source_id` no es NULL; ENTRADA_COMPRA > 0 y con origen PURCHASE_ITEM; SALIDA_CONSUMO < 0; AJUSTE exige `reason`; índice `(ingredient_id, created_at)` |
 
 - Cada insumo tiene **una única unidad base**; la compra se registra en esa unidad.
 - `current_stock` es una caché de `SUM(inventory_movements.quantity)` y se actualiza en la misma

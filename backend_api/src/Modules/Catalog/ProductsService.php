@@ -18,13 +18,22 @@ final class ProductsService
         $this->categories = new CategoryRepository($db);
     }
 
-    /** Cartilla: categorías activas con sus productos activos (incluye los agotados, marcados). */
+    /**
+     * Cartilla: categorías activas con sus productos activos (incluye los agotados, marcados) y los
+     * extras que acepta cada categoría.
+     */
     public function menu(): array
     {
+        $extras = (new ExtrasService($this->db, $this->actor))->menuExtras();
         $menu = [];
         foreach ($this->products->menuRows() as $row) {
             $categoryId = (int) $row['category_id'];
-            $menu[$categoryId] ??= ['id' => $categoryId, 'name' => $row['category_name'], 'products' => []];
+            $menu[$categoryId] ??= [
+                'id' => $categoryId,
+                'name' => $row['category_name'],
+                'extras' => $extras[$categoryId] ?? [],
+                'products' => [],
+            ];
             $menu[$categoryId]['products'][] = [
                 'id' => (int) $row['id'],
                 'name' => $row['name'],

@@ -47,14 +47,49 @@ enum Channel {
   static Channel fromApi(String value) => values.firstWhere((c) => c.api == value);
 }
 
-class OrderItem {
-  const OrderItem({required this.productId, required this.name, required this.unitCents, required this.quantity, required this.lineCents});
+class OrderItemExtra {
+  const OrderItemExtra({required this.extraId, required this.name, required this.unitCents, required this.quantity});
 
-  final int productId;
+  final int extraId;
   final String name;
   final int unitCents;
   final int quantity;
+
+  factory OrderItemExtra.fromJson(Map<String, dynamic> json) => OrderItemExtra(
+        extraId: json['extra_id'] as int,
+        name: json['name'] as String,
+        unitCents: Money.toCents(json['unit_price'] as String),
+        quantity: json['quantity'] as int,
+      );
+}
+
+class OrderItem {
+  const OrderItem({
+    required this.productId,
+    required this.name,
+    required this.unitCents,
+    required this.quantity,
+    required this.lineCents,
+    this.notes,
+    this.extras = const [],
+  });
+
+  final int productId;
+  final String name;
+
+  /// Precio del producto, sin extras.
+  final int unitCents;
+  final int quantity;
+
+  /// (precio + extras) × cantidad.
   final int lineCents;
+  final String? notes;
+  final List<OrderItemExtra> extras;
+
+  /// "+ Huevo ×2, Queso" (vacío si no hay extras).
+  String get extrasLabel => extras.isEmpty
+      ? ''
+      : '+ ${extras.map((e) => e.quantity > 1 ? '${e.name} ×${e.quantity}' : e.name).join(', ')}';
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
         productId: json['product_id'] as int,
@@ -62,6 +97,8 @@ class OrderItem {
         unitCents: Money.toCents(json['unit_price'] as String),
         quantity: json['quantity'] as int,
         lineCents: Money.toCents(json['line_total'] as String),
+        notes: json['notes'] as String?,
+        extras: [for (final e in json['extras'] as List? ?? const []) OrderItemExtra.fromJson(e as Map<String, dynamic>)],
       );
 }
 

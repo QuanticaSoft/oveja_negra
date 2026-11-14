@@ -54,3 +54,32 @@ ON CONFLICT ((lower(name))) DO NOTHING;
 INSERT INTO expense_categories (name) VALUES
     ('Alquiler'), ('Servicios básicos'), ('Sueldos'), ('Gas'), ('Mantenimiento'), ('Otros')
 ON CONFLICT ((lower(name))) DO NOTHING;
+
+-- Extras de demostración para las hamburguesas. Los que tienen insumo figuran "agotados" hasta que
+-- haya stock (se registra una compra); el Queso usa el cheddar ya cargado arriba.
+INSERT INTO ingredients (name, category_id, unit_id, min_stock)
+SELECT v.name, c.id, u.id, v.min_stock
+FROM (VALUES
+    ('Huevo',    'Lácteos',  'unidad', 12.000),
+    ('Jalapeño', 'Verduras', 'kg',      0.500)
+) AS v(name, category, unit, min_stock)
+JOIN ingredient_categories c ON lower(c.name) = lower(v.category)
+JOIN units u ON u.code = v.unit
+ON CONFLICT ((lower(name))) DO NOTHING;
+
+INSERT INTO extras (name, price, ingredient_id, ingredient_quantity, sort_order)
+SELECT v.name, v.price, i.id, v.quantity, v.sort_order
+FROM (VALUES
+    ('Huevo',    4.00, 'Huevo',          1.000, 1),
+    ('Queso',    4.00, 'Queso cheddar',  0.020, 2),
+    ('Tocino',   6.00, 'Tocino',         0.030, 3),
+    ('Jalapeño', 3.00, 'Jalapeño',       0.015, 4)
+) AS v(name, price, ingredient, quantity, sort_order)
+JOIN ingredients i ON lower(i.name) = lower(v.ingredient)
+ON CONFLICT ((lower(name))) DO NOTHING;
+
+INSERT INTO category_extras (category_id, extra_id)
+SELECT c.id, e.id
+FROM categories c CROSS JOIN extras e
+WHERE lower(c.name) = 'hamburguesas' AND lower(e.name) IN ('huevo', 'queso', 'tocino', 'jalapeño')
+ON CONFLICT DO NOTHING;

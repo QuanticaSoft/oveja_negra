@@ -5,11 +5,18 @@ import '../domain/cart.dart';
 
 /// Líneas del carrito con + y −. Se usa al vender y al editar los ítems de un pedido.
 class CartLines extends StatelessWidget {
-  const CartLines({super.key, required this.cart, required this.onQuantity, this.rejected = const {}});
+  const CartLines({
+    super.key,
+    required this.cart,
+    required this.onQuantity,
+    this.rejected = const {},
+    this.rejectedExtras = const {},
+  });
 
   final Cart cart;
-  final void Function(int productId, int quantity) onQuantity;
+  final void Function(String lineKey, int quantity) onQuantity;
   final Set<int> rejected;
+  final Set<int> rejectedExtras;
 
   @override
   Widget build(BuildContext context) {
@@ -21,31 +28,40 @@ class CartLines extends StatelessWidget {
     }
     final error = Theme.of(context).colorScheme.error;
     return Column(children: [
-      for (final line in cart.lines)
-        ListTile(
-          key: Key('cart.line.${line.productId}'),
-          contentPadding: EdgeInsets.zero,
-          title: Text(line.name, style: TextStyle(color: rejected.contains(line.productId) ? error : null)),
-          subtitle: Text(rejected.contains(line.productId)
-              ? 'Agotado: quítalo para continuar'
-              : '${Money.bob(line.unitCents)} × ${line.quantity} = ${Money.bob(line.lineCents)}'),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            IconButton(
-              key: Key('cart.minus.${line.productId}'),
-              tooltip: 'Quitar uno',
-              icon: const Icon(Icons.remove_circle_outline),
-              onPressed: () => onQuantity(line.productId, line.quantity - 1),
-            ),
-            Text('${line.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            IconButton(
-              key: Key('cart.plus.${line.productId}'),
-              tooltip: 'Agregar uno',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: line.quantity >= Cart.maxQuantity ? null : () => onQuantity(line.productId, line.quantity + 1),
-            ),
-          ]),
-        ),
+      for (final line in cart.lines) _line(line, error),
     ]);
+  }
+
+  Widget _line(CartLine line, Color error) {
+    final blocked = rejected.contains(line.productId) || line.extras.any((e) => rejectedExtras.contains(e.extraId));
+    final unit = line.unitCents + line.extrasUnitCents;
+    return ListTile(
+      key: Key('cart.line.${line.key}'),
+      contentPadding: EdgeInsets.zero,
+      title: Text(line.name, style: TextStyle(color: blocked ? error : null)),
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (line.extras.isNotEmpty) Text(line.extrasLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+        if (line.notes.isNotEmpty) Text(line.notes, style: const TextStyle(fontStyle: FontStyle.italic)),
+        Text(blocked
+            ? 'Agotado: quítalo o cámbialo para continuar'
+            : '${Money.bob(unit)} × ${line.quantity} = ${Money.bob(line.lineCents)}'),
+      ]),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          key: Key('cart.minus.${line.productId}'),
+          tooltip: 'Quitar uno',
+          icon: const Icon(Icons.remove_circle_outline),
+          onPressed: () => onQuantity(line.key, line.quantity - 1),
+        ),
+        Text('${line.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        IconButton(
+          key: Key('cart.plus.${line.productId}'),
+          tooltip: 'Agregar uno',
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: line.quantity >= Cart.maxQuantity ? null : () => onQuantity(line.key, line.quantity + 1),
+        ),
+      ]),
+    );
   }
 }
 

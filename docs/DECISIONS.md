@@ -2,6 +2,16 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-14: Extras por categoría que descuentan inventario al registrar el pedido
+Pedido por el usuario tras probar en staging. Decisiones (aprobadas por el usuario):
+- Los extras (huevo, queso, jalapeño, tocino…) se asignan **por categoría**, con cantidad de 1 a 5 por
+  ítem, y cada ítem lleva una **nota** para la cocina.
+- Cada extra puede descontar **un** insumo, **al registrar el pedido**. Si no hay stock, el extra figura
+  agotado y el pedido se rechaza (409 `EXTRA_OUT_OF_STOCK`): el stock nunca queda negativo. Cancelar o
+  editar los ítems devuelve el stock con un `REVERSO`, sin tocar el costo promedio.
+- `order_item_extras` guarda nombre, precio, insumo y cantidad del momento: un cambio posterior del
+  extra no altera pedidos ni el reverso. El mismo producto puede ir en varias líneas (otros extras/nota).
+
 ## 2026-11-09: Fechas de madrugada: jornada por defecto, rangos hasta el calendario
 Entre las 00:00 y las 04:00 la jornada (día operativo) es todavía la del día anterior, pero la fecha de
 calendario ya cambió. La app usaba la fecha de calendario por defecto en compras y gastos, mientras los

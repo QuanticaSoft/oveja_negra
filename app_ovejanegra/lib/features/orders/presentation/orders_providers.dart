@@ -22,17 +22,22 @@ class CartController extends Notifier<Cart> {
   /// Productos que el servidor rechazó por agotados en el último intento.
   Set<int> unavailable = {};
 
+  /// Extras que el servidor rechazó (agotados o sin stock del insumo) en el último intento.
+  Set<int> unavailableExtras = {};
+
   @override
   Cart build() => const Cart();
 
   void add(Product product) => state = state.add(product);
-  void setQuantity(int productId, int quantity) => state = state.setQuantity(productId, quantity);
+  void addLine(CartLine line) => state = state.addLine(line);
+  void setQuantity(String lineKey, int quantity) => state = state.setQuantity(lineKey, quantity);
   void setChannel(Channel channel) => state = state.withChannel(channel);
   void setDiscount(int cents) => state = state.withDiscount(cents);
   void setCustomer({String? name, String? phone}) => state = state.withCustomer(name: name, phone: phone);
   void setNotes(String notes) => state = state.withNotes(notes);
   void clear() {
     unavailable = {};
+    unavailableExtras = {};
     state = const Cart();
   }
 
@@ -44,11 +49,16 @@ class CartController extends Notifier<Cart> {
       final order = await ref.read(ordersApiProvider).create(body, _operation.keyFor(body));
       _operation.done();
       unavailable = {};
+      unavailableExtras = {};
       state = const Cart();
       return order;
     } on ApiException catch (e) {
       if (e.code == 'PRODUCT_UNAVAILABLE') {
         unavailable = {for (final p in e.details['products'] as List? ?? const []) (p as Map)['id'] as int};
+        ref.notifyListeners();
+      }
+      if (e.code == 'EXTRA_UNAVAILABLE' || e.code == 'EXTRA_OUT_OF_STOCK') {
+        unavailableExtras = {for (final x in e.details['extras'] as List? ?? const []) (x as Map)['id'] as int};
         ref.notifyListeners();
       }
       rethrow;

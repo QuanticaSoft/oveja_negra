@@ -59,19 +59,91 @@ class Product {
   }
 }
 
-/// Una categoría de la cartilla con sus productos activos (incluidos los agotados).
+/// Una categoría de la cartilla con sus productos activos (incluidos los agotados) y sus extras.
 class MenuSection {
-  const MenuSection({required this.id, required this.name, required this.products});
+  const MenuSection({required this.id, required this.name, required this.products, this.extras = const []});
 
   final int id;
   final String name;
   final List<Product> products;
 
+  /// Extras que acepta la categoría (huevo, queso…), con disponibilidad ya calculada por el servidor.
+  final List<MenuExtra> extras;
+
   factory MenuSection.fromJson(Map<String, dynamic> json) => MenuSection(
         id: json['id'] as int,
         name: json['name'] as String,
         products: [for (final p in json['products'] as List) Product.fromJson(p as Map<String, dynamic>)],
+        extras: [for (final e in json['extras'] as List? ?? const []) MenuExtra.fromJson(e as Map<String, dynamic>)],
       );
+}
+
+/// Extra tal como aparece en la cartilla: disponible = activo, no agotado y con stock del insumo.
+class MenuExtra {
+  const MenuExtra({required this.id, required this.name, required this.priceCents, required this.isAvailable});
+
+  final int id;
+  final String name;
+  final int priceCents;
+  final bool isAvailable;
+
+  factory MenuExtra.fromJson(Map<String, dynamic> json) => MenuExtra(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        priceCents: Money.toCents(json['price'] as String),
+        isAvailable: json['is_available'] as bool,
+      );
+}
+
+/// Extra completo, para administrarlo (`GET /v1/extras`).
+class Extra {
+  const Extra({
+    required this.id,
+    required this.name,
+    required this.priceCents,
+    required this.sortOrder,
+    required this.isActive,
+    required this.isAvailable,
+    required this.inStock,
+    required this.categoryIds,
+    this.ingredientId,
+    this.ingredientName,
+    this.ingredientUnit,
+    this.ingredientQuantity,
+  });
+
+  final int id;
+  final String name;
+  final int priceCents;
+  final int? ingredientId;
+  final String? ingredientName;
+  final String? ingredientUnit;
+
+  /// Cantidad del insumo por porción, como texto NUMERIC ("0.020").
+  final String? ingredientQuantity;
+  final int sortOrder;
+  final bool isActive;
+  final bool isAvailable;
+  final bool inStock;
+  final List<int> categoryIds;
+
+  factory Extra.fromJson(Map<String, dynamic> json) {
+    final ingredient = json['ingredient'] as Map<String, dynamic>?;
+    return Extra(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      priceCents: Money.toCents(json['price'] as String),
+      ingredientId: ingredient?['id'] as int?,
+      ingredientName: ingredient?['name'] as String?,
+      ingredientUnit: ingredient?['unit'] as String?,
+      ingredientQuantity: ingredient?['quantity'] as String?,
+      sortOrder: json['sort_order'] as int,
+      isActive: json['is_active'] as bool,
+      isAvailable: json['is_available'] as bool,
+      inStock: json['in_stock'] as bool,
+      categoryIds: [...(json['category_ids'] as List? ?? const []).cast<int>()],
+    );
+  }
 }
 
 class PriceChange {
