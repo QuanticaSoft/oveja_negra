@@ -18,9 +18,10 @@ void main() {
   });
 
   test('cantidad entre 1 y 99; 0 quita la línea', () {
-    var cart = const Cart().add(burger).setQuantity(10, 150);
+    var cart = const Cart().add(burger);
+    cart = cart.setQuantity(cart.lines.single.key, 150);
     expect(cart.quantityOf(10), Cart.maxQuantity);
-    cart = cart.setQuantity(10, 0);
+    cart = cart.setQuantity(cart.lines.single.key, 0);
     expect(cart.isEmpty, isTrue);
   });
 
@@ -86,5 +87,47 @@ void main() {
     expect(OrderStatus.entregado.next, isEmpty);
     expect(OrderStatus.cancelado.next, isEmpty);
     expect(Cart.fromOrder(order).quantityOf(10), 2);
+  });
+
+  test('extras: precio por unidad, líneas separadas por extras/nota y unión de líneas idénticas', () {
+    const egg = CartExtra(extraId: 1, name: 'Huevo', priceCents: 400, quantity: 2);
+    const withEgg = CartLine(productId: 10, name: 'Clásica', unitCents: 2550, quantity: 1, notes: 'sin cebolla', extras: [egg]);
+    var cart = const Cart().addLine(withEgg).addLine(withEgg).add(burger);
+
+    expect(cart.lines.length, 2, reason: 'la Clásica sola es otra línea');
+    expect(cart.lines.first.quantity, 2, reason: 'dos líneas idénticas se juntan');
+    // (25,50 + 2 × 4) × 2 + 25,50 = 92,50
+    expect([cart.lines.first.extrasUnitCents, cart.lines.first.lineCents, cart.subtotalCents], [800, 6700, 9250]);
+    expect(cart.quantityOf(10), 3);
+    expect(cart.lines.first.extrasLabel, '+ Huevo ×2');
+
+    expect(cart.itemsToApi(), [
+      {'product_id': 10, 'quantity': 2, 'notes': 'sin cebolla', 'extras': [{'extra_id': 1, 'quantity': 2}]},
+      {'product_id': 10, 'quantity': 1},
+    ]);
+
+    cart = cart.setQuantity(cart.lines.first.key, 0);
+    expect(cart.lines.single.extras, isEmpty);
+  });
+
+  test('pedido con extras del API → carrito de edición con los mismos extras y nota', () {
+    final base = orderJson();
+    final order = Order.fromJson({
+      ...base,
+      'items': [
+        {
+          ...((base['items'] as List).first as Map<String, dynamic>),
+          'notes': 'término medio',
+          'line_total': '59.00',
+          'extras_unit_total': '4.00',
+          'extras': [
+            {'extra_id': 1, 'name': 'Huevo', 'unit_price': '4.00', 'quantity': 1},
+          ],
+        },
+      ],
+    });
+    expect([order.items.single.extrasLabel, order.items.single.notes], ['+ Huevo', 'término medio']);
+    final line = Cart.fromOrder(order).lines.single;
+    expect([line.extrasUnitCents, line.notes, line.lineCents], [400, 'término medio', 5900]);
   });
 }

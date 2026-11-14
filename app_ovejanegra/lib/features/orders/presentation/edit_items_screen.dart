@@ -10,6 +10,7 @@ import '../../catalog/presentation/catalog_providers.dart';
 import '../domain/cart.dart';
 import '../domain/order.dart';
 import 'cart_lines.dart';
+import 'customize_sheet.dart';
 import 'orders_providers.dart';
 import 'product_grid.dart';
 
@@ -73,7 +74,16 @@ class _EditorState extends ConsumerState<_Editor> {
       builder: (sections) => ProductGrid(
         sections: sections,
         quantityOf: _cart.quantityOf,
-        onAdd: (p) => setState(() => _cart = _cart.add(p)),
+        onAdd: (product, section) async {
+          if (section.extras.isEmpty) {
+            setState(() => _cart = _cart.add(product));
+            return;
+          }
+          final line = await showCustomizeSheet(context, product: product, extras: section.extras);
+          if (line != null) {
+            setState(() => _cart = _cart.addLine(line));
+          }
+        },
       ),
     );
     final panel = ListView(padding: const EdgeInsets.all(16), children: [

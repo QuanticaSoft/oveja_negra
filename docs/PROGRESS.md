@@ -205,7 +205,22 @@
     calendario, fuera de los rangos por jornada. Corregido en la app (ver `DECISIONS.md`), con tests
     que simulan las 00:56 y las 15:00. App `0.8.4+5`.
 
+- 2026-11-14: **Extras en los pedidos** (API `0.8.0`, migración `007_extras.sql`; app `0.8.5+6`):
+  - Catálogo de extras con precio e insumo opcional; asignación por categoría; agotado manual y
+    disponibilidad calculada por stock.
+  - Ítems con nota y extras (1 a 5 cada uno); precio desde la BD; consumo del insumo al registrar el
+    pedido; reverso al cancelar o editar; idempotencia que compara también extras y nota.
+  - App: hoja "Personalizar" (extras agotados deshabilitados, precio en vivo, nota). Las líneas del
+    carrito se separan por extras y nota. Cocina y detalle muestran "+ Huevo ×2" y la nota. Pestaña
+    Extras en Productos, "Extras permitidos" por categoría y extras en la Cartilla.
+  - Demo: insumos Huevo y Jalapeño; extras Huevo, Queso, Tocino y Jalapeño en Hamburguesas.
+  - Backend 123 tests (5 nuevos) y app 51 (4 nuevos). Se verificó que fallan los tests si se quita el
+    reverso al cancelar o si la línea del carrito ignora los extras.
+  - Dev por HTTP: Clásica con queso ×2 = Bs 33 y descuento de 0,040 kg de cheddar. En el emulador, la
+    Cartilla muestra los extras.
+
 ## Próximo
-- PR `fix/fechas-jornada` → `develop` y APK nuevo para el usuario.
+- PR `fix/fechas-jornada` (#18) y PR `feature/extras` → `develop`. Con OK del usuario:
+  `migrate.sh staging` (007), `deploy.sh staging`, `seed.sh staging` y APK nuevo.
 - Propuesta: APK de prueba apuntando a staging para que el usuario lo instale en su teléfono.
   Después, Fase 9 (revisión de seguridad, validaciones y documentación).

@@ -73,11 +73,18 @@ Map<String, dynamic> productJson(int id, String name, String price, {bool availa
       'is_available': available,
     };
 
-Map<String, dynamic> menuJson() => {
+/// Con [extras], Hamburguesas acepta Huevo (disponible) y Tocino (sin stock).
+Map<String, dynamic> menuJson({bool extras = false}) => {
       'data': [
         {
           'id': 1,
           'name': 'Hamburguesas',
+          'extras': extras
+              ? [
+                  {'id': 1, 'name': 'Huevo', 'price': '4.00', 'is_available': true},
+                  {'id': 2, 'name': 'Tocino', 'price': '6.00', 'is_available': false},
+                ]
+              : [],
           'products': [productJson(10, 'Clásica', '25.50'), productJson(11, 'Bacon', '32.00', available: false)],
         },
         {

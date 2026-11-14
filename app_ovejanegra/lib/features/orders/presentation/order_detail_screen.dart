@@ -134,8 +134,15 @@ class _OrderDetailState extends ConsumerState<_OrderDetail> {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(children: [
-              for (final i in order.items)
+              for (final i in order.items) ...[
                 _line('${i.quantity}× ${i.name}', Money.bob(i.lineCents)),
+                if (i.extras.isNotEmpty || i.notes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 4),
+                    child: Text([if (i.extras.isNotEmpty) i.extrasLabel, ?i.notes].join(' · '),
+                        style: const TextStyle(color: AppColors.grey)),
+                  ),
+              ],
               const Divider(),
               if (order.discountCents > 0) ...[
                 _line('Subtotal', Money.bob(order.subtotalCents)),

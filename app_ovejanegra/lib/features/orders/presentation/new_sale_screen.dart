@@ -7,10 +7,12 @@ import '../../../core/utils/money.dart';
 import '../../../core/widgets/api_error_text.dart';
 import '../../../core/widgets/async_view.dart';
 import '../../auth/presentation/session_controller.dart';
+import '../../catalog/domain/catalog.dart';
 import '../../catalog/presentation/catalog_providers.dart';
 import '../domain/cart.dart';
 import '../domain/order.dart';
 import 'cart_lines.dart';
+import 'customize_sheet.dart';
 import 'orders_providers.dart';
 import 'payment_sheet.dart';
 import 'product_grid.dart';
@@ -21,6 +23,20 @@ class NewSaleScreen extends ConsumerWidget {
   const NewSaleScreen({super.key});
 
   static const twoPaneWidth = 720.0;
+
+  /// Con extras en la categoría se abre Personalizar; si no, se agrega directo.
+  static Future<void> _add(BuildContext context, WidgetRef ref, Product product, MenuSection section) async {
+    final controller = ref.read(cartControllerProvider.notifier);
+    if (section.extras.isEmpty) {
+      controller.add(product);
+      return;
+    }
+    final line = await showCustomizeSheet(context,
+        product: product, extras: section.extras, rejectedExtras: controller.unavailableExtras);
+    if (line != null) {
+      controller.addLine(line);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +52,7 @@ class NewSaleScreen extends ConsumerWidget {
         child: ProductGrid(
           sections: sections,
           quantityOf: cart.quantityOf,
-          onAdd: controller.add,
+          onAdd: (product, section) => _add(context, ref, product, section),
           rejected: controller.unavailable,
         ),
       ),
@@ -135,13 +151,13 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     try {
       order = await ref.read(cartControllerProvider.notifier).submit(payments);
     } on ApiException catch (e) {
-      if (e.code == 'PRODUCT_UNAVAILABLE') {
+      if (e.code == 'PRODUCT_UNAVAILABLE' || e.code.startsWith('EXTRA_')) {
         ref.invalidate(menuProvider);
       }
       if (mounted) {
         setState(() {
           _submitting = false;
-          _error = e.fieldError('discount') ?? e.fieldError('customer_phone') ?? e.message;
+          _error = e.fieldError('discount') ?? e.fieldError('customer_phone') ?? _extrasMessage(e) ?? e.message;
         });
       }
       return;
@@ -173,6 +189,15 @@ class _CartPanelState extends ConsumerState<CartPanel> {
         ),
       );
 
+  /// "No hay stock suficiente para algunos extras: Huevo, Tocino."
+  static String? _extrasMessage(ApiException e) {
+    final extras = e.details['extras'];
+    if (!e.code.startsWith('EXTRA_') || extras is! List || extras.isEmpty) {
+      return null;
+    }
+    return '${e.message.replaceAll(RegExp(r'\.$'), '')}: ${[for (final x in extras.cast<Map>()) x['name']].join(', ')}.';
+  }
+
   static String _paymentLabel(Order order) => switch (order.paymentStatus) {
         'PAGADO' => 'Pagado',
         'PARCIAL' => 'Saldo ${Money.bob(order.balanceCents)}',
@@ -201,7 +226,12 @@ class _CartPanelState extends ConsumerState<CartPanel> {
           selected: {cart.channel},
           onSelectionChanged: (s) => controller.setChannel(s.first),
         ),
-        CartLines(cart: cart, onQuantity: controller.setQuantity, rejected: controller.unavailable),
+        CartLines(
+          cart: cart,
+          onQuantity: controller.setQuantity,
+          rejected: controller.unavailable,
+          rejectedExtras: controller.unavailableExtras,
+        ),
         if (cart.channel == Channel.whatsapp) ...[
           TextField(
             controller: _name,

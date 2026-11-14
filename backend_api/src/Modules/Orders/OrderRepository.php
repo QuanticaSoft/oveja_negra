@@ -96,22 +96,83 @@ final class OrderRepository
         return (int) $stmt->fetchColumn();
     }
 
-    /** @param list<array{product_id: int, name: string, unit_price: string, quantity: int, line_total: string}> $items */
+    /**
+     * Inserta los ítems y sus extras (con snapshot de nombre, precio e insumo).
+     *
+     * @param list<array{product_id: int, name: string, unit_price: string, quantity: int, line_total: string,
+     *                   notes: ?string, extras_unit_total: string, extras: list<array>}> $items
+     */
     public function insertItems(int $orderId, array $items): void
     {
-        $stmt = $this->db->prepare(
-            'INSERT INTO order_items (order_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total)
-             VALUES (?, ?, ?, ?, ?, ?)'
+        $item = $this->db->prepare(
+            'INSERT INTO order_items (order_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total,
+                                      notes, extras_unit_total)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
         );
-        foreach ($items as $item) {
-            $stmt->execute([$orderId, $item['product_id'], $item['name'], $item['unit_price'], $item['quantity'], $item['line_total']]);
+        $extra = $this->db->prepare(
+            'INSERT INTO order_item_extras (order_id, order_item_id, extra_id, name_snapshot, unit_price_snapshot, quantity,
+                                            ingredient_id, ingredient_quantity)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        foreach ($items as $line) {
+            $item->execute([$orderId, $line['product_id'], $line['name'], $line['unit_price'], $line['quantity'], $line['line_total'],
+                $line['notes'], $line['extras_unit_total']]);
+            $itemId = (int) $item->fetchColumn();
+            foreach ($line['extras'] as $e) {
+                $extra->execute([$orderId, $itemId, $e['extra_id'], $e['name'], $e['unit_price'], $e['quantity'],
+                    $e['ingredient_id'], $e['ingredient_quantity']]);
+            }
         }
     }
 
     /** Solo posible con el pedido PENDIENTE y sin pagos: lo garantiza el trigger guard_order_items_change. */
     public function deleteItems(int $orderId): void
     {
+        $this->db->prepare('DELETE FROM order_item_extras WHERE order_id = ?')->execute([$orderId]);
         $this->db->prepare('DELETE FROM order_items WHERE order_id = ?')->execute([$orderId]);
+    }
+
+    /**
+     * Extras del pedido que descuentan un insumo, con la cantidad total a descontar
+     * (cantidad del insumo × cantidad del extra × cantidad del ítem) en el texto NUMERIC.
+     *
+     * @return list<array{id: int, ingredient_id: int, name_snapshot: string, total_quantity: string}>
+     */
+    public function extrasWithIngredient(int $orderId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT e.id, e.ingredient_id, e.name_snapshot,
+                    (e.ingredient_quantity * e.quantity * i.quantity)::numeric(12,3)::text AS total_quantity
+             FROM order_item_extras e JOIN order_items i ON i.id = e.order_item_id
+             WHERE e.order_id = ? AND e.ingredient_id IS NOT NULL
+             ORDER BY e.id'
+        );
+        $stmt->execute([$orderId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Ids de extras permitidos por categoría.
+     *
+     * @param list<int> $categoryIds
+     * @return array<int, list<int>>
+     */
+    public function allowedExtras(array $categoryIds): array
+    {
+        if ($categoryIds === []) {
+            return [];
+        }
+        $categoryIds = array_values(array_unique($categoryIds));
+        $stmt = $this->db->prepare(
+            'SELECT category_id, extra_id FROM category_extras
+             WHERE category_id IN (' . implode(', ', array_fill(0, count($categoryIds), '?')) . ')'
+        );
+        $stmt->execute($categoryIds);
+        $allowed = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $allowed[(int) $row['category_id']][] = (int) $row['extra_id'];
+        }
+        return $allowed;
     }
 
     public function updateTotals(int $orderId, string $subtotal, string $discount, string $total): void
@@ -141,15 +202,26 @@ final class OrderRepository
         if ($orderIds === []) {
             return [];
         }
+        $in = implode(', ', array_fill(0, count($orderIds), '?'));
+        $extras = $this->db->prepare(
+            "SELECT order_item_id, extra_id, name_snapshot, unit_price_snapshot, quantity
+             FROM order_item_extras WHERE order_id IN ({$in}) ORDER BY order_item_id, id"
+        );
+        $extras->execute($orderIds);
+        $extrasByItem = [];
+        foreach ($extras->fetchAll() as $row) {
+            $extrasByItem[(int) $row['order_item_id']][] = $row;
+        }
         $stmt = $this->db->prepare(
-            'SELECT id, order_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total
-             FROM order_items WHERE order_id IN (' . implode(', ', array_fill(0, count($orderIds), '?')) . ')
-             ORDER BY order_id, id'
+            "SELECT id, order_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total,
+                    notes, extras_unit_total
+             FROM order_items WHERE order_id IN ({$in})
+             ORDER BY order_id, id"
         );
         $stmt->execute($orderIds);
         $grouped = [];
         foreach ($stmt->fetchAll() as $row) {
-            $grouped[(int) $row['order_id']][] = $row;
+            $grouped[(int) $row['order_id']][] = $row + ['extras' => $extrasByItem[(int) $row['id']] ?? []];
         }
         return $grouped;
     }
@@ -163,7 +235,7 @@ final class OrderRepository
     public function productsForSale(array $productIds): array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.id, p.name, p.price, p.is_active AND p.is_available AND c.is_active AS sellable
+            'SELECT p.id, p.name, p.price, p.category_id, p.is_active AND p.is_available AND c.is_active AS sellable
              FROM products p JOIN categories c ON c.id = p.category_id
              WHERE p.id IN (' . implode(', ', array_fill(0, count($productIds), '?')) . ')'
         );

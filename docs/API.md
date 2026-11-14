@@ -85,6 +85,11 @@ Errores propios: `USERNAME_TAKEN` y `PHONE_TAKEN` (409); `CANNOT_DEACTIVATE_SELF
 | PATCH | `/v1/products/{id}/availability` `{is_available}` (agotado hoy) | `products.availability` (ADMIN y CAJERO) |
 | POST | `/v1/products/{id}/image` multipart, campo `image` (JPG/PNG/WEBP, ≤ 8 MB, ≤ 25 MP); reemplaza la anterior | `catalog.manage` |
 | GET | `/v1/products/{id}/price-history` → `[{old_price, new_price, changed_at, changed_by: {id, full_name}}]` | `catalog.manage` |
+| GET | `/v1/extras?active` → con `category_ids`, `ingredient: null \| {id, name, unit, quantity}`, `in_stock` | `catalog.read` |
+| POST | `/v1/extras` `{name, price, ingredient_id?, ingredient_quantity?, sort_order?}` → 201 | `catalog.manage` |
+| PATCH | `/v1/extras/{id}` `{name?, price?, ingredient_id?, ingredient_quantity?, sort_order?, is_active?}` | `catalog.manage` |
+| PATCH | `/v1/extras/{id}/availability` `{is_available}` (agotado hoy) | `products.availability` |
+| PUT | `/v1/categories/{id}/extras` `{extra_ids: [..]}` (reemplaza qué extras acepta la categoría) | `catalog.manage` |
 
 Producto:
 ```json
@@ -95,6 +100,10 @@ Producto:
 - **Los importes son texto con 2 decimales** (`"25.00"`), nunca números JSON: así no se pierde
   precisión. Al enviar se acepta `"25.50"`, `25.5` o `25`. El precio debe ser mayor que 0.
 - La imagen se guarda en 800 px y una miniatura de 300 px (`thumb_url`), siempre como JPEG nuevo, sin EXIF.
+- **Extras** (huevo, queso…): se venden sobre los productos de las categorías que los aceptan. Pueden
+  descontar **un** insumo (`ingredient_id` + `ingredient_quantity` por porción, ambos o ninguno). En
+  `GET /v1/menu` cada categoría trae `extras: [{id, name, price, is_available}]`, con
+  `is_available = activo ∧ no agotado ∧ (sin insumo ∨ stock ≥ una porción)`. `EXTRA_NAME_TAKEN` (409).
 - Errores: `CATEGORY_NAME_TAKEN` · `PRODUCT_NAME_TAKEN` (409, sin distinguir mayúsculas; el mismo nombre
   en otra categoría sí vale) · `CATEGORY_INACTIVE` (409) · `UNSUPPORTED_IMAGE` (415) · `IMAGE_TOO_LARGE` (413).
 
@@ -113,14 +122,21 @@ Producto:
 
 Crear pedido:
 ```json
-{"channel": "WHATSAPP", "items": [{"product_id": 3, "quantity": 2}], "discount": "5.00",
+{"channel": "WHATSAPP", "items": [{"product_id": 3, "quantity": 2, "notes": "sin cebolla",
+   "extras": [{"extra_id": 1, "quantity": 2}]}], "discount": "5.00",
  "customer_name": "Ana", "customer_phone": "+59170000000", "notes": "sin cebolla",
  "payments": [{"method": "EFECTIVO", "amount": "20"}, {"method": "QR", "amount": "26"}]}
 ```
 - **Los precios salen siempre de la BD**; si el cliente envía un precio, se ignora. Cada ítem guarda
   una copia del nombre y del precio, así que un cambio de precio posterior no altera el pedido.
-- 1 a 50 líneas, cantidad de 1 a 99, un producto por línea. El producto debe estar activo, disponible y
-  en una categoría activa.
+- 1 a 50 líneas, cantidad de 1 a 99. El producto debe estar activo, disponible y en una categoría
+  activa. El mismo producto puede ir en varias líneas (con otros extras u otra nota).
+- Cada ítem acepta `notes` (hasta 200, para la cocina) y `extras: [{extra_id, quantity 1..5}]` (hasta 10,
+  sin repetir). El extra debe estar permitido en la categoría del producto (400) y disponible
+  (409 `EXTRA_UNAVAILABLE`). `line_total = (precio + Σ precio_extra · cantidad_extra) × cantidad`.
+- **Los extras con insumo lo descuentan al registrar el pedido** (`SALIDA_CONSUMO`, origen
+  `ORDER_ITEM_EXTRA`). Si no alcanza, 409 `EXTRA_OUT_OF_STOCK` con `details.extras` y `details.ingredients`
+  (no se guarda nada). Cancelar o editar ítems devuelve el stock (`REVERSO`).
 - `discount` es un monto fijo, exige `orders.discount` y no puede superar el subtotal.
 - `payments` es opcional (hasta 5, para pagos mixtos) y exige `payments.create`. Si algo falla, no se
   guarda nada: ni el pedido, ni sus ítems, ni sus pagos.
@@ -135,7 +151,9 @@ Pedido:
 ```json
 {"id": 184, "number": 3, "business_date": "2026-11-08", "channel": "LOCAL", "status": "PENDIENTE",
  "customer_name": null, "customer_phone": null, "notes": null,
- "items": [{"id": 1, "product_id": 39, "name": "Bacon", "unit_price": "32.00", "quantity": 1, "line_total": "32.00"}],
+ "items": [{"id": 1, "product_id": 39, "name": "Bacon", "unit_price": "32.00", "quantity": 1, "notes": null,
+            "extras": [{"extra_id": 1, "name": "Huevo", "unit_price": "4.00", "quantity": 1}],
+            "extras_unit_total": "4.00", "line_total": "36.00"}],
  "subtotal": "32.00", "discount": "0.00", "total": "32.00", "paid": "10.00", "balance": "22.00",
  "payment_status": "PARCIAL", "created_by": {"id": 2, "full_name": "…"}, "cancelled": null,
  "created_at": "…", "updated_at": "…", "payments": [ … ]}

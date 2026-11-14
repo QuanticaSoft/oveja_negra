@@ -36,6 +36,11 @@ $router->patch('/v1/products/{id}/status', [CatalogController::class, 'setStatus
 $router->patch('/v1/products/{id}/availability', [CatalogController::class, 'setAvailability'], 'products.availability');
 $router->post('/v1/products/{id}/image', [CatalogController::class, 'uploadImage'], 'catalog.manage');
 $router->get('/v1/products/{id}/price-history', [CatalogController::class, 'priceHistory'], 'catalog.manage');
+$router->get('/v1/extras', [CatalogController::class, 'extras'], 'catalog.read');
+$router->post('/v1/extras', [CatalogController::class, 'createExtra'], 'catalog.manage');
+$router->patch('/v1/extras/{id}', [CatalogController::class, 'updateExtra'], 'catalog.manage');
+$router->patch('/v1/extras/{id}/availability', [CatalogController::class, 'setExtraAvailability'], 'products.availability');
+$router->put('/v1/categories/{id}/extras', [CatalogController::class, 'setCategoryExtras'], 'catalog.manage');
 
 // Pedidos y pagos
 $router->get('/v1/orders', [OrdersController::class, 'index'], 'orders.read');

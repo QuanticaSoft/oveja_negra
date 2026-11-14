@@ -10,6 +10,7 @@ import '../../../core/widgets/dialogs.dart';
 import '../../orders/presentation/product_grid.dart';
 import '../domain/catalog.dart';
 import 'catalog_providers.dart';
+import 'extras_tab.dart';
 
 /// Administración del catálogo (`catalog.manage`): productos y categorías.
 class ProductsScreen extends StatelessWidget {
@@ -18,10 +19,10 @@ class ProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(children: [
-        TabBar(tabs: [Tab(text: 'Productos'), Tab(text: 'Categorías')]),
-        Expanded(child: TabBarView(children: [_ProductsTab(), _CategoriesTab()])),
+        TabBar(tabs: [Tab(text: 'Productos'), Tab(text: 'Categorías'), Tab(text: 'Extras')]),
+        Expanded(child: TabBarView(children: [_ProductsTab(), _CategoriesTab(), ExtrasTab()])),
       ]),
     );
   }
@@ -108,6 +109,25 @@ class _CategoriesTab extends ConsumerWidget {
     }
   }
 
+  Future<void> _extras(BuildContext context, WidgetRef ref, Category category) async {
+    try {
+      final extras = await ref.read(extrasProvider.future);
+      if (!context.mounted) {
+        return;
+      }
+      final ids = await pickCategoryExtras(context, category: category, extras: extras);
+      if (ids == null) {
+        return;
+      }
+      await ref.read(catalogApiProvider).setCategoryExtras(category.id, ids);
+      refreshCatalog(ref);
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        showMessage(context, e.message);
+      }
+    }
+  }
+
   Future<void> _setActive(BuildContext context, WidgetRef ref, Category category, bool active) async {
     try {
       await ref.read(catalogApiProvider).updateCategory(category.id, {'is_active': active});
@@ -140,11 +160,19 @@ class _CategoriesTab extends ConsumerWidget {
                   title: Text(c.name),
                   subtitle: Text('Orden ${c.sortOrder}'),
                   onTap: () => _edit(context, ref, c),
-                  trailing: Switch(
-                    value: c.isActive,
-                    activeThumbColor: AppColors.orange,
-                    onChanged: (v) => _setActive(context, ref, c, v),
-                  ),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                      key: Key('category.extras.${c.id}'),
+                      tooltip: 'Extras permitidos',
+                      icon: const Icon(Icons.tune),
+                      onPressed: () => _extras(context, ref, c),
+                    ),
+                    Switch(
+                      value: c.isActive,
+                      activeThumbColor: AppColors.orange,
+                      onChanged: (v) => _setActive(context, ref, c, v),
+                    ),
+                  ]),
                 ),
               ),
           ],

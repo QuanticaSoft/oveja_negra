@@ -85,4 +85,21 @@ class CatalogApi {
         () => _dio.get<dynamic>('/products/$id/price-history'),
         (data) => [for (final h in data as List) PriceChange.fromJson(h as Map<String, dynamic>)],
       );
+
+  Future<List<Extra>> extras() => apiCall(
+        () => _dio.get<dynamic>('/extras'),
+        (data) => [for (final e in data as List) Extra.fromJson(e as Map<String, dynamic>)],
+      );
+
+  Future<void> createExtra(Map<String, dynamic> fields) => apiCall(() => _dio.post<dynamic>('/extras', data: fields), (_) {});
+
+  Future<void> updateExtra(int id, Map<String, dynamic> fields) =>
+      apiCall(() => _dio.patch<dynamic>('/extras/$id', data: fields), (_) {});
+
+  Future<void> setExtraAvailability(int id, bool available) =>
+      apiCall(() => _dio.patch<dynamic>('/extras/$id/availability', data: {'is_available': available}), (_) {});
+
+  /// Reemplaza los extras que acepta la categoría.
+  Future<void> setCategoryExtras(int categoryId, List<int> extraIds) =>
+      apiCall(() => _dio.put<dynamic>('/categories/$categoryId/extras', data: {'extra_ids': extraIds}), (_) {});
 }

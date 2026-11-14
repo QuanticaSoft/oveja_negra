@@ -10,7 +10,8 @@ class ProductGrid extends StatefulWidget {
 
   final List<MenuSection> sections;
   final int Function(int productId) quantityOf;
-  final ValueChanged<Product> onAdd;
+  /// Recibe también la sección: si acepta extras, quien llama abre la hoja Personalizar.
+  final void Function(Product product, MenuSection section) onAdd;
 
   /// Productos que el servidor rechazó por agotados (aunque la cartilla cargada diga disponibles).
   final Set<int> rejected;
@@ -29,7 +30,10 @@ class _ProductGridState extends State<ProductGrid> {
       return const Center(child: Text('La cartilla no tiene productos activos.'));
     }
     final selected = sections.where((s) => s.id == _sectionId).firstOrNull;
-    final products = selected?.products ?? [for (final s in sections) ...s.products];
+    final entries = [
+      for (final s in selected == null ? sections : [selected])
+        for (final p in s.products) (p, s),
+    ];
     return Column(
       children: [
         SizedBox(
@@ -52,14 +56,15 @@ class _ProductGridState extends State<ProductGrid> {
               crossAxisSpacing: 10,
               childAspectRatio: 0.82,
             ),
-            itemCount: products.length,
+            itemCount: entries.length,
             itemBuilder: (context, i) {
-              final product = products[i];
+              final (product, section) = entries[i];
               return ProductCard(
                 product: product,
                 quantity: widget.quantityOf(product.id),
                 available: product.isAvailable && !widget.rejected.contains(product.id),
-                onTap: () => widget.onAdd(product),
+                customizable: section.extras.isNotEmpty,
+                onTap: () => widget.onAdd(product, section),
               );
             },
           ),
@@ -75,12 +80,22 @@ class _ProductGridState extends State<ProductGrid> {
 }
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product, required this.quantity, required this.available, required this.onTap});
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.quantity,
+    required this.available,
+    required this.onTap,
+    this.customizable = false,
+  });
 
   final Product product;
   final int quantity;
   final bool available;
   final VoidCallback onTap;
+
+  /// Su categoría acepta extras: tocar abre la hoja Personalizar.
+  final bool customizable;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +132,13 @@ class ProductCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text(Money.bob(product.priceCents), style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w700)),
+                Row(children: [
+                  Text(Money.bob(product.priceCents), style: const TextStyle(color: AppColors.orange, fontWeight: FontWeight.w700)),
+                  if (customizable) ...[
+                    const Spacer(),
+                    const Icon(Icons.tune, size: 16, color: AppColors.grey),
+                  ],
+                ]),
               ]),
             ),
           ],
