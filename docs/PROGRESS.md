@@ -225,6 +225,10 @@
   - APK `0.8.5` (solo staging) instalado por USB en el teléfono del usuario (ZTE Blade A34). El primer
     intento falló porque el teléfono estaba reiniciando, con la batería casi agotada; se reinstaló bien.
 
+- 2026-11-15: Personalizar con desplegables (app `0.8.6+7`): extras con desplegable y cantidad, y
+  bebida en un desplegable que se agrega como línea aparte a precio normal. Sin cambios en el backend.
+  52 tests en la app.
+
 ## Próximo
 - Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
   que registrar una compra de ese insumo.

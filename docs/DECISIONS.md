@@ -2,6 +2,15 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-15: Personalizar con desplegables y bebida aparte
+Pedido por el usuario al probar en su teléfono:
+- Los extras se eligen con un **desplegable** y su cantidad (1 a 5), con "Agregar otro extra". Los
+  agotados o ya elegidos se ven pero no se pueden seleccionar.
+- Se agrega un desplegable **Bebida** ("Sin bebida" por defecto). La bebida se agrega como **línea aparte**
+  con su precio normal y la misma cantidad que el producto; no hay precio de combo (aprobado por el usuario).
+- Las bebidas ofrecidas son los productos de las categorías cuyo nombre contiene "bebida". El backend no
+  cambia.
+
 ## 2026-11-14: Extras por categoría que descuentan inventario al registrar el pedido
 Pedido por el usuario tras probar en staging. Decisiones (aprobadas por el usuario):
 - Los extras (huevo, queso, jalapeño, tocino…) se asignan **por categoría**, con cantidad de 1 a 5 por
