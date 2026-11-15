@@ -4,9 +4,13 @@ import '../../../app/theme.dart';
 import '../../../core/utils/money.dart';
 import '../domain/cart.dart';
 import '../domain/order.dart';
+import 'qr_payment_screen.dart';
 
-/// Hoja de cobro: uno o varios pagos (efectivo + QR) por hasta [dueCents]. En efectivo, lo que
-/// entrega el cliente calcula el vuelto en pantalla. Devuelve los pagos o null si se cierra.
+/// Cómo paga el cliente: todo en efectivo, todo por QR, o una parte en efectivo y el resto por QR.
+enum PaymentMode { cash, qr, mixed }
+
+/// Hoja de cobro por hasta [dueCents]. En efectivo calcula el vuelto en pantalla (no se envía); con QR
+/// muestra el QR del banco con el monto. Devuelve los pagos a registrar, o null si se cierra.
 Future<List<PaymentDraft>?> showPaymentSheet(BuildContext context, {required int dueCents, required String title}) {
   return showModalBottomSheet<List<PaymentDraft>>(
     context: context,
@@ -26,127 +30,135 @@ class PaymentSheet extends StatefulWidget {
   State<PaymentSheet> createState() => _PaymentSheetState();
 }
 
-class _Row {
-  _Row(this.method, int cents) : amount = TextEditingController(text: _plain(cents));
-
-  PaymentMethod method;
-  final TextEditingController amount;
-  final received = TextEditingController();
+class _PaymentSheetState extends State<PaymentSheet> {
+  PaymentMode _mode = PaymentMode.cash;
+  late final _amount = TextEditingController(text: _plain(widget.dueCents));
+  final _cash = TextEditingController();
+  final _received = TextEditingController();
 
   static String _plain(int cents) => Money.toApi(cents).replaceAll('.', ',');
 
-  PaymentDraft draft() => PaymentDraft(
-        method,
-        Money.parseInput(amount.text) ?? 0,
-        receivedCents: method == PaymentMethod.efectivo ? Money.parseInput(received.text) : null,
-      );
-
-  void dispose() {
-    amount.dispose();
-    received.dispose();
-  }
-}
-
-class _PaymentSheetState extends State<PaymentSheet> {
-  late final List<_Row> _rows = [_Row(PaymentMethod.efectivo, widget.dueCents)];
-
   @override
   void dispose() {
-    for (final r in _rows) {
-      r.dispose();
+    for (final c in [_amount, _cash, _received]) {
+      c.dispose();
     }
     super.dispose();
   }
 
-  PaymentPlan get _plan => PaymentPlan([for (final r in _rows) r.draft()], widget.dueCents);
+  int? get _receivedCents => _received.text.trim().isEmpty ? null : Money.parseInput(_received.text);
 
-  void _addRow() {
-    final remaining = _plan.remainingCents;
-    final other = _rows.first.method == PaymentMethod.efectivo ? PaymentMethod.qr : PaymentMethod.efectivo;
-    setState(() => _rows.add(_Row(other, remaining > 0 ? remaining : 0)));
-  }
+  /// En mixto: lo que paga en efectivo; el QR cubre el resto del saldo.
+  int get _cashPart => Money.parseInput(_cash.text) ?? 0;
+  int get _qrRemainder => widget.dueCents - _cashPart;
+  bool get _mixedValid => _cashPart > 0 && _qrRemainder > 0;
+
+  List<PaymentDraft> get _payments => switch (_mode) {
+        PaymentMode.cash => [PaymentDraft(PaymentMethod.efectivo, Money.parseInput(_amount.text) ?? 0, receivedCents: _receivedCents)],
+        PaymentMode.qr => [PaymentDraft(PaymentMethod.qr, Money.parseInput(_amount.text) ?? 0)],
+        PaymentMode.mixed => [
+            PaymentDraft(PaymentMethod.efectivo, _cashPart, receivedCents: _receivedCents),
+            PaymentDraft(PaymentMethod.qr, _qrRemainder),
+          ],
+      };
 
   @override
   Widget build(BuildContext context) {
-    final plan = _plan;
+    final plan = PaymentPlan(_payments, widget.dueCents);
+    final valid = plan.isValid && (_mode != PaymentMode.mixed || _mixedValid);
+    final cashDraft = plan.payments.first;
     final error = Theme.of(context).colorScheme.error;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
-            Text('A cobrar: ${Money.bob(widget.dueCents)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            for (var i = 0; i < _rows.length; i++) _paymentRow(i),
-            if (_rows.length < 5 && plan.remainingCents > 0)
-              TextButton.icon(onPressed: _addRow, icon: const Icon(Icons.add), label: const Text('Agregar otro pago (mixto)')),
-            const SizedBox(height: 8),
-            if (plan.overpays)
-              Text('Los pagos superan lo que hay que cobrar.', style: TextStyle(color: error))
-            else if (plan.remainingCents > 0)
-              Text('Quedará un saldo de ${Money.bob(plan.remainingCents)}.', style: const TextStyle(color: AppColors.grey)),
-            const SizedBox(height: 12),
-            FilledButton(
-              key: const Key('payment.confirm'),
-              onPressed: plan.isValid ? () => Navigator.pop(context, plan.payments) : null,
-              child: Text('Cobrar ${Money.bob(plan.paidCents)}'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _paymentRow(int index) {
-    final row = _rows[index];
-    final draft = row.draft();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(children: [
-          Row(children: [
-            Expanded(
-              child: SegmentedButton<PaymentMethod>(
-                segments: [for (final m in PaymentMethod.values) ButtonSegment(value: m, label: Text(m.label))],
-                selected: {row.method},
-                onSelectionChanged: (s) => setState(() => row.method = s.first),
-              ),
-            ),
-            if (_rows.length > 1)
-              IconButton(
-                tooltip: 'Quitar pago',
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _rows.removeAt(index).dispose()),
-              ),
-          ]),
-          const SizedBox(height: 12),
-          TextField(
-            key: Key('payment.amount.$index'),
-            controller: row.amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Monto', prefixText: 'Bs '),
-            onChanged: (_) => setState(() {}),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+          Text('A cobrar: ${Money.bob(widget.dueCents)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          SegmentedButton<PaymentMode>(
+            segments: const [
+              ButtonSegment(value: PaymentMode.cash, icon: Icon(Icons.payments_outlined), label: Text('Efectivo')),
+              ButtonSegment(value: PaymentMode.qr, icon: Icon(Icons.qr_code_2), label: Text('QR')),
+              ButtonSegment(value: PaymentMode.mixed, icon: Icon(Icons.call_split), label: Text('Mixto')),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (s) => setState(() => _mode = s.first),
           ),
-          if (row.method == PaymentMethod.efectivo) ...[
-            const SizedBox(height: 12),
-            TextField(
-              key: Key('payment.received.$index'),
-              controller: row.received,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Recibido del cliente (opcional)',
-                prefixText: 'Bs ',
-                helperText: draft.changeCents != null ? 'Vuelto: ${Money.bob(draft.changeCents!)}' : null,
-                helperStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.black),
-                errorText: draft.receivedIsShort ? 'No alcanza para el monto.' : null,
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-          ],
+          const SizedBox(height: 16),
+          ...switch (_mode) {
+            PaymentMode.cash => [
+                _moneyField('payment.amount.0', _amount, 'Monto'),
+                const SizedBox(height: 12),
+                _receivedField(cashDraft),
+              ],
+            PaymentMode.qr => [
+                _moneyField('payment.amount.0', _amount, 'Monto por QR'),
+                const SizedBox(height: 12),
+                _showQrButton(Money.parseInput(_amount.text) ?? 0),
+              ],
+            PaymentMode.mixed => [
+                _moneyField('payment.cash', _cash, 'Parte en efectivo'),
+                const SizedBox(height: 12),
+                _receivedField(cashDraft),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Text('QR (resto)', style: TextStyle(fontSize: 16)),
+                  const Spacer(),
+                  Text(_qrRemainder > 0 ? Money.bob(_qrRemainder) : '—',
+                      key: const Key('payment.qrRemainder'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                ]),
+                const SizedBox(height: 8),
+                if (_mixedValid)
+                  _showQrButton(_qrRemainder)
+                else
+                  Text('El efectivo debe ser mayor que 0 y menor que ${Money.bob(widget.dueCents)}.', style: TextStyle(color: error)),
+              ],
+          },
+          const SizedBox(height: 8),
+          if (plan.overpays)
+            Text('El monto supera lo que hay que cobrar.', style: TextStyle(color: error))
+          else if (_mode != PaymentMode.mixed && plan.remainingCents > 0)
+            Text('Quedará un saldo de ${Money.bob(plan.remainingCents)}.', style: const TextStyle(color: AppColors.grey)),
+          const SizedBox(height: 12),
+          FilledButton(
+            key: const Key('payment.confirm'),
+            onPressed: valid ? () => Navigator.pop(context, plan.payments) : null,
+            child: Text('Cobrar ${Money.bob(plan.paidCents)}'),
+          ),
         ]),
       ),
     );
   }
+
+  Widget _moneyField(String key, TextEditingController controller, String label) => TextField(
+        key: Key(key),
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(labelText: label, prefixText: 'Bs '),
+        onChanged: (_) => setState(() {}),
+      );
+
+  /// Lo que entrega el cliente en efectivo: solo sirve para el vuelto en pantalla.
+  Widget _receivedField(PaymentDraft cash) => TextField(
+        key: const Key('payment.received.0'),
+        controller: _received,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: 'Recibido en efectivo (opcional)',
+          prefixText: 'Bs ',
+          helperText: cash.changeCents != null ? 'Vuelto: ${Money.bob(cash.changeCents!)}' : null,
+          helperStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.black),
+          errorText: cash.receivedIsShort ? 'No alcanza para el monto.' : null,
+        ),
+        onChanged: (_) => setState(() {}),
+      );
+
+  Widget _showQrButton(int cents) => OutlinedButton.icon(
+        key: const Key('payment.showQr'),
+        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        onPressed: cents > 0 ? () => showQrPayment(context, amountCents: cents) : null,
+        icon: const Icon(Icons.qr_code_2),
+        label: Text('Mostrar QR · ${Money.bob(cents)}'),
+      );
 }

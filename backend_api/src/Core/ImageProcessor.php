@@ -11,6 +11,7 @@ final class ImageProcessor
 {
     public const FULL_SIDE = 800;
     public const THUMB_SIDE = 300;
+    public const QR_SIDE = 1000;
     private const JPEG_QUALITY = 82;
     private const MAX_BYTES = 8 * 1024 * 1024;
     // GD necesita ~4 bytes por píxel y el pool PHP de flamenco tiene 128 MB.
@@ -44,6 +45,36 @@ final class ImageProcessor
      */
     public static function store(string $sourcePath, string $mediaDir, string $relativeDir, ?string $name = null): string
     {
+        $image = self::decode($sourcePath);
+        $relativePath = self::targetDir($mediaDir, $relativeDir) . '/' . ($name ?? bin2hex(random_bytes(12))) . '.jpg';
+        try {
+            self::write($image, self::FULL_SIDE, rtrim($mediaDir, '/') . '/' . $relativePath, png: false);
+            self::write($image, self::THUMB_SIDE, rtrim($mediaDir, '/') . '/' . self::thumbPathFor($relativePath), png: false);
+        } finally {
+            imagedestroy($image);
+        }
+        return $relativePath;
+    }
+
+    /**
+     * Igual que store() pero en PNG sin pérdida, un solo tamaño y sin miniatura: para imágenes que
+     * deben conservar bordes nítidos, como el QR de cobro (el JPEG los borronea y puede no escanearse).
+     */
+    public static function storePng(string $sourcePath, string $mediaDir, string $relativeDir, int $maxSide = self::QR_SIDE): string
+    {
+        $image = self::decode($sourcePath);
+        $relativePath = self::targetDir($mediaDir, $relativeDir) . '/' . bin2hex(random_bytes(12)) . '.png';
+        try {
+            self::write($image, $maxSide, rtrim($mediaDir, '/') . '/' . $relativePath, png: true);
+        } finally {
+            imagedestroy($image);
+        }
+        return $relativePath;
+    }
+
+    /** Valida el archivo (tamaño, tipo real, píxeles) y lo decodifica: lo que no sea imagen no pasa. */
+    private static function decode(string $sourcePath): GdImage
+    {
         if (filesize($sourcePath) > self::MAX_BYTES) {
             throw self::tooLarge();
         }
@@ -60,24 +91,17 @@ final class ImageProcessor
         if ($image === false) {
             throw new ApiException('UNSUPPORTED_IMAGE', 'No se pudo leer la imagen.', 415);
         }
-        if ($mime === 'image/jpeg') {
-            $image = self::uprightFromExif($image, $sourcePath);
-        }
+        return $mime === 'image/jpeg' ? self::uprightFromExif($image, $sourcePath) : $image;
+    }
 
+    private static function targetDir(string $mediaDir, string $relativeDir): string
+    {
         $relativeDir = trim($relativeDir, '/');
         $absoluteDir = rtrim($mediaDir, '/') . '/' . $relativeDir;
         if (!is_dir($absoluteDir) && !mkdir($absoluteDir, 0755, true) && !is_dir($absoluteDir)) {
             throw new RuntimeException("No se pudo crear {$absoluteDir}");
         }
-
-        $relativePath = $relativeDir . '/' . ($name ?? bin2hex(random_bytes(12))) . '.jpg';
-        try {
-            self::writeJpeg($image, self::FULL_SIDE, rtrim($mediaDir, '/') . '/' . $relativePath);
-            self::writeJpeg($image, self::THUMB_SIDE, rtrim($mediaDir, '/') . '/' . self::thumbPathFor($relativePath));
-        } finally {
-            imagedestroy($image);
-        }
-        return $relativePath;
+        return $relativeDir;
     }
 
     public static function thumbPathFor(string $relativePath): string
@@ -121,8 +145,8 @@ final class ImageProcessor
         return $rotated;
     }
 
-    // Se escribe a un temporal y se renombra: nunca queda publicado un JPEG a medias.
-    private static function writeJpeg(GdImage $source, int $maxSide, string $target): void
+    // Se escribe a un temporal y se renombra: nunca queda publicada una imagen a medias.
+    private static function write(GdImage $source, int $maxSide, string $target, bool $png): void
     {
         $width = imagesx($source);
         $height = imagesy($source);
@@ -131,12 +155,12 @@ final class ImageProcessor
         $newHeight = max(1, (int) round($height * $scale));
 
         $canvas = imagecreatetruecolor($newWidth, $newHeight);
-        // Un PNG transparente quedaría negro en JPEG: se compone sobre blanco.
+        // Un PNG transparente quedaría negro (JPEG) o ilegible para un lector de QR: se compone sobre blanco.
         imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
         imagecopyresampled($canvas, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
         $temporary = $target . '.tmp';
-        $written = imagejpeg($canvas, $temporary, self::JPEG_QUALITY);
+        $written = $png ? imagepng($canvas, $temporary, 6) : imagejpeg($canvas, $temporary, self::JPEG_QUALITY);
         imagedestroy($canvas);
         if (!$written || !rename($temporary, $target)) {
             @unlink($temporary);

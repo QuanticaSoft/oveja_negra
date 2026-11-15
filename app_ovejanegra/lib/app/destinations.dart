@@ -24,6 +24,7 @@ const destinations = <Destination>[
   Destination('/expenses', 'Gastos', Icons.payments_outlined, 'expenses.read'),
   Destination('/reports', 'Reportes', Icons.bar_chart_outlined, 'reports.read'),
   Destination('/users', 'Usuarios y permisos', Icons.manage_accounts_outlined, 'users.manage'),
+  Destination('/settings', 'Configuración de cobro', Icons.qr_code_2, 'settings.manage'),
 ];
 
 const accountPath = '/account';

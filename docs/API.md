@@ -190,6 +190,20 @@ anularlo se genera un `EGRESO` de reverso en el día de la anulación. Un pedido
 | `PAYMENT_ALREADY_VOIDED` | 409 | Anular un pago ya anulado |
 | `FORBIDDEN` | 403 | Descuento sin `orders.discount` o pagos sin `payments.create` |
 
+## Configuración de cobro (QR)
+
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET | `/v1/payment-settings` → `{bank_name, account_holder, account_number, qr_url, updated_at}` | sesión |
+| PATCH | `/v1/payment-settings` `{bank_name?, account_holder?, account_number?}` (80/120/40 caracteres; `""` borra) | `settings.manage` (ADMIN) |
+| POST | `/v1/payment-settings/qr` multipart, campo `image` (JPG/PNG/WEBP ≤ 8 MB); reemplaza el anterior | `settings.manage` |
+
+- El QR es la imagen de cobro **que genera el banco** para la cuenta del negocio. El servidor la vuelve a
+  codificar en **PNG sin pérdida** (hasta 1000 px, bajo `media/qr/`), para que se pueda escanear. La app
+  la muestra junto al monto, el cliente paga desde su app y el cajero registra el pago QR como siempre.
+- Los pagos no cambian: solo efectivo, solo QR o mixto se registran como uno o dos pagos
+  (`POST /v1/orders` con `payments`, o `POST /v1/orders/{id}/payments`).
+
 ## Compras, insumos e inventario
 
 | Método | Ruta | Permiso |

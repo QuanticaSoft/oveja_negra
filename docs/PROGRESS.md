@@ -229,7 +229,20 @@
   bebida en un desplegable que se agrega como línea aparte a precio normal. Sin cambios en el backend.
   52 tests en la app.
 
+- 2026-11-15: **Cobro Efectivo / QR / Mixto con QR del banco** (API `0.8.1`, migración `008_payment_settings.sql`;
+  app `0.8.7+8`):
+  - Configuración de cobro (ADMIN): banco, titular, cuenta e imagen del QR en PNG sin pérdida;
+    `ImageProcessor::storePng()`.
+  - Hoja de cobro con tres modos. En Mixto, el resto va por QR con su vuelto en efectivo. Pantalla QR
+    con el monto.
+  - Backend 125 tests y app 55. Se verificó que el test de Mixto falla si el resto no descuenta el
+    efectivo.
+  - Dev por HTTP: el ADMIN sube el QR (servido como `image/png`); el CAJERO lo lee pero recibe 403 al
+    modificarlo; sin sesión, 401.
+
 ## Próximo
+- Con OK del usuario: `migrate.sh staging` (008), `deploy.sh staging` y APK `0.8.7` en su teléfono.
+  Después él sube el QR real de su banco desde "Configuración de cobro".
 - Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
   que registrar una compra de ese insumo.
 - Fase 9 (endurecimiento y salida a producción), pendiente de las respuestas del usuario.

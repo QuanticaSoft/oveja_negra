@@ -21,6 +21,7 @@ import '../features/purchasing/presentation/purchase_detail_screen.dart';
 import '../features/purchasing/presentation/purchases_screen.dart';
 import '../features/reports/presentation/dashboard_screen.dart';
 import '../features/reports/presentation/reports_screen.dart';
+import '../features/settings/presentation/payment_settings_screen.dart';
 import '../features/users/presentation/users_screen.dart';
 import '../features/orders/presentation/edit_items_screen.dart';
 import '../features/orders/presentation/new_sale_screen.dart';
@@ -104,6 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(path: '/users', builder: (_, _) => const UsersScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const PaymentSettingsScreen()),
         ],
       ),
     ],

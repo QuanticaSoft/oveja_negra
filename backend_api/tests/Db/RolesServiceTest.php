@@ -17,7 +17,10 @@ final class RolesServiceTest extends DbTestCase
         $byCode = array_column($this->service->list(), null, 'code');
         $this->assertSame(['ADMIN', 'CAJERO', 'ENCARGADO'], array_keys($byCode));
         $this->assertTrue(in_array('orders.create', $byCode['CAJERO']['permissions'], true));
-        $this->assertSame(28, count($this->service->permissions()));
+        // 28 de la Fase 3 + settings.manage (008), que solo tiene el ADMIN.
+        $this->assertSame(29, count($this->service->permissions()));
+        $this->assertTrue(in_array('settings.manage', $byCode['ADMIN']['permissions'], true));
+        $this->assertTrue(!in_array('settings.manage', $byCode['CAJERO']['permissions'], true));
     }
 
     public function testReemplazarPermisosQuedaAuditado(): void

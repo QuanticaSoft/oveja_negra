@@ -93,6 +93,11 @@ $router->get('/v1/reports/expenses/by-category', [ReportsController::class, 'exp
 $router->get('/v1/reports/products/top', [ReportsController::class, 'topProducts'], 'reports.read');
 $router->get('/v1/reports/finance/movements', [ReportsController::class, 'financeMovements'], 'reports.read');
 
+// Configuración de cobro (QR del banco). La lee quien cobra; la cambia solo quien tiene settings.manage.
+$router->get('/v1/payment-settings', [SettingsController::class, 'paymentSettings'], Router::SESSION);
+$router->patch('/v1/payment-settings', [SettingsController::class, 'updatePaymentSettings'], 'settings.manage');
+$router->post('/v1/payment-settings/qr', [SettingsController::class, 'uploadQr'], 'settings.manage');
+
 // Roles y permisos
 $router->get('/v1/roles', [RolesController::class, 'index'], 'roles.manage');
 $router->get('/v1/permissions', [RolesController::class, 'permissions'], 'roles.manage');
