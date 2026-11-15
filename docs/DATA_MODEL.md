@@ -96,6 +96,12 @@ erDiagram
   No se permite pagar de más.
 - Los ítems solo se editan con el pedido PENDIENTE y sin pagos; si no, se cancela y se crea otro.
 
+### Configuración
+
+| Tabla | Columnas clave | Restricciones |
+|---|---|---|
+| `payment_settings` | `bank_name`, `account_holder`, `account_number`, `qr_image_path`, `updated_by` | una sola fila (`id = 1`); sin DELETE |
+
 ### Compras e inventario
 
 | Tabla | Columnas clave | Restricciones |

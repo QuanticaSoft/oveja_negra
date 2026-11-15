@@ -114,6 +114,7 @@ Instalación y flamenco: `docs/INSTALL.md`.
 - Controllers: los filtros de query se leen con `QueryParams::only([...])`.
 - Imágenes: siempre por `ImageProcessor::store()` (re-codifica, sin EXIF) y URLs con `Media::url()`.
   Las subidas van bajo `p/`; nunca borrar fuera de ese prefijo (`demo/` es la media de demo).
+  El QR de cobro usa `ImageProcessor::storePng()` (PNG sin pérdida, sin miniatura) bajo `qr/`.
 - Comandos para el usuario: su Mac usa **zsh** (`read -p` no sirve; usar `read -s "VAR?Prompt: "`) y las
   contraseñas solo se escriben en un prompt oculto, nunca en la línea de comandos ni en el chat.
 - Tests: runner propio `backend_api/tests/run.php` (sin PHPUnit). `tests/Db/*` heredan de `DbTestCase`

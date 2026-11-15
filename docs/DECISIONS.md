@@ -2,6 +2,18 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-15: Cobro Efectivo / QR / Mixto con el QR fijo del banco
+Pedido por el usuario. En Bolivia el QR que leen las apps bancarias lo genera el banco: la app no puede
+fabricarlo solo con el número de cuenta. Decisiones (aprobadas por el usuario):
+- El ADMIN sube **una vez** la imagen del QR de cobro de la cuenta (permiso nuevo `settings.manage`,
+  migración 008). Se guarda en el servidor en **PNG sin pérdida**, porque el JPEG borronea los bordes y
+  puede impedir el escaneo.
+- La hoja de cobro tiene **Efectivo / QR / Mixto**. En Mixto se escribe el efectivo y el QR es el resto.
+  "Mostrar QR" lo enseña en pantalla completa con el **monto** en grande; el cliente escribe ese monto
+  en su app y el cajero confirma el pago a mano, como antes.
+- El QR dinámico por API del banco (con monto y confirmación automática) sigue **fuera del MVP**:
+  requiere contrato y credenciales del banco.
+
 ## 2026-11-15: Personalizar con desplegables y bebida aparte
 Pedido por el usuario al probar en su teléfono:
 - Los extras se eligen con un **desplegable** y su cantidad (1 a 5), con "Agregar otro extra". Los
