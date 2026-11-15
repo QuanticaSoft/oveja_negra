@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class PaymentSettingsTest extends DbTestCase
 {
     private string $mediaDir;
+    private int $adminId;
     private PaymentSettingsService $settings;
 
     public function setUp(): void
@@ -12,7 +13,8 @@ final class PaymentSettingsTest extends DbTestCase
         parent::setUp();
         $this->mediaDir = sys_get_temp_dir() . '/oveja_qr_' . bin2hex(random_bytes(4));
         mkdir($this->mediaDir);
-        $admin = $this->authUser($this->insertUser('ADMIN', 'admin.test'));
+        $this->adminId = $this->insertUser('ADMIN', 'admin.test');
+        $admin = $this->authUser($this->adminId);
         $this->settings = new PaymentSettingsService($this->db, $admin,
             new Media(['media_dir' => $this->mediaDir, 'media_base_url' => 'https://cdn.test/media']));
     }
@@ -29,7 +31,9 @@ final class PaymentSettingsTest extends DbTestCase
 
         $saved = $this->settings->update(['bank_name' => ' Banco  Unión ', 'account_holder' => 'Oveja Negra SRL', 'account_number' => '']);
         $this->assertSame(['Banco Unión', 'Oveja Negra SRL', null], [$saved['bank_name'], $saved['account_holder'], $saved['account_number']]);
-        $this->assertSame(1, (int) $this->scalar("SELECT count(*) FROM audit_logs WHERE entity = 'payment_settings' AND action = 'update'"));
+        // Solo los de este test: la BD dev puede tener auditoría real de otras pruebas.
+        $this->assertSame(1, (int) $this->scalar(
+            "SELECT count(*) FROM audit_logs WHERE entity = 'payment_settings' AND action = 'update' AND user_id = ?", [$this->adminId]));
 
         $this->assertApiError('VALIDATION_ERROR', 400, fn () => $this->settings->update(['bank_name' => str_repeat('x', 81)]));
         $this->assertApiError('VALIDATION_ERROR', 400, fn () => $this->settings->update([]));
