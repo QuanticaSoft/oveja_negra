@@ -219,8 +219,15 @@
   - Dev por HTTP: Clásica con queso ×2 = Bs 33 y descuento de 0,040 kg de cheddar. En el emulador, la
     Cartilla muestra los extras.
 
+- 2026-11-14: PR #18 (fechas de madrugada) y #19 (extras) integrados y **desplegados en staging**:
+  - Migración `007_extras` aplicada en `oveja_negra_staging` (7 migraciones); health `0.8.0`.
+  - Demo con los extras Huevo, Queso, Tocino y Jalapeño en Hamburguesas.
+  - APK `0.8.5` (solo staging) instalado por USB en el teléfono del usuario (ZTE Blade A34). El primer
+    intento falló porque el teléfono estaba reiniciando, con la batería casi agotada; se reinstaló bien.
+
 ## Próximo
-- PR `fix/fechas-jornada` (#18) y PR `feature/extras` → `develop`. Con OK del usuario:
-  `migrate.sh staging` (007), `deploy.sh staging`, `seed.sh staging` y APK nuevo.
+- Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
+  que registrar una compra de ese insumo.
+- Fase 9 (endurecimiento y salida a producción), pendiente de las respuestas del usuario.
 - Propuesta: APK de prueba apuntando a staging para que el usuario lo instale en su teléfono.
   Después, Fase 9 (revisión de seguridad, validaciones y documentación).
