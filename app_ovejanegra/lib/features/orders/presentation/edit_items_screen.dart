@@ -79,9 +79,16 @@ class _EditorState extends ConsumerState<_Editor> {
             setState(() => _cart = _cart.add(product));
             return;
           }
-          final line = await showCustomizeSheet(context, product: product, extras: section.extras);
-          if (line != null) {
-            setState(() => _cart = _cart.addLine(line));
+          final sections = ref.read(menuProvider).value ?? const [];
+          final chosen = await showCustomizeSheet(context,
+              product: product, extras: section.extras, drinks: drinksOf(sections, excludeProductId: product.id));
+          if (chosen != null) {
+            setState(() {
+              _cart = _cart.addLine(chosen.product);
+              if (chosen.drink != null) {
+                _cart = _cart.addLine(chosen.drink!);
+              }
+            });
           }
         },
       ),

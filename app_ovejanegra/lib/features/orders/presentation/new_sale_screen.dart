@@ -31,10 +31,17 @@ class NewSaleScreen extends ConsumerWidget {
       controller.add(product);
       return;
     }
-    final line = await showCustomizeSheet(context,
-        product: product, extras: section.extras, rejectedExtras: controller.unavailableExtras);
-    if (line != null) {
-      controller.addLine(line);
+    final sections = ref.read(menuProvider).value ?? const [];
+    final chosen = await showCustomizeSheet(context,
+        product: product,
+        extras: section.extras,
+        drinks: drinksOf(sections, excludeProductId: product.id),
+        rejectedExtras: controller.unavailableExtras);
+    if (chosen != null) {
+      controller.addLine(chosen.product);
+      if (chosen.drink != null) {
+        controller.addLine(chosen.drink!);
+      }
     }
   }
 
