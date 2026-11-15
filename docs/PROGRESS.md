@@ -240,9 +240,14 @@
   - Dev por HTTP: el ADMIN sube el QR (servido como `image/png`); el CAJERO lo lee pero recibe 403 al
     modificarlo; sin sesión, 401.
 
+- 2026-11-15: PR #21 (desplegables de Personalizar) y #22 (cobro QR) integrados y **desplegados en
+  staging**:
+  - Migración 008 aplicada (8 en total); health `0.8.1`.
+  - `settings.manage` solo para el ADMIN; las rutas de cobro responden 401 sin sesión.
+  - APK `0.8.7` (solo staging) instalado por USB en el teléfono del usuario.
+
 ## Próximo
-- Con OK del usuario: `migrate.sh staging` (008), `deploy.sh staging` y APK `0.8.7` en su teléfono.
-  Después él sube el QR real de su banco desde "Configuración de cobro".
+- El usuario sube el QR real de su banco desde "Configuración de cobro" y prueba el cobro mixto.
 - Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
   que registrar una compra de ese insumo.
 - Fase 9 (endurecimiento y salida a producción), pendiente de las respuestas del usuario.
