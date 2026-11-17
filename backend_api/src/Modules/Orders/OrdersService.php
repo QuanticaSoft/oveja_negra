@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class OrdersService
 {
     public const CHANNELS = ['WHATSAPP', 'LOCAL'];
+    public const FULFILLMENTS = ['CONSUMO_LOCAL', 'RECOGER', 'DELIVERY'];
     // Solo se avanza (se pueden saltar pasos); CANCELADO tiene su propio endpoint.
     private const STATUS_FLOW = ['PENDIENTE', 'EN_PREPARACION', 'LISTO', 'ENTREGADO'];
     private const STATUSES = [...self::STATUS_FLOW, 'CANCELADO'];
@@ -91,6 +92,7 @@ final class OrdersService
             $errors['notes'] = 'Máximo 500 caracteres.';
         }
         $payments = self::parsePayments($input['payments'] ?? [], $errors);
+        $delivery = self::parseFulfillment($input, $errors);
         if ($errors !== []) {
             throw ApiException::validation($errors);
         }
@@ -103,14 +105,14 @@ final class OrdersService
 
         $existing = $this->orders->findByIdempotencyKey($key);
         if ($existing !== null) {
-            return $this->replay($existing, $channel, $items);
+            return $this->replay($existing, $channel, $delivery, $items);
         }
 
         try {
-            $order = Db::transaction($this->db, function () use ($key, $channel, $items, $discount, $customerName, $customerPhone, $notes, $payments): array {
+            $order = Db::transaction($this->db, function () use ($key, $channel, $items, $discount, $customerName, $customerPhone, $notes, $payments, $delivery): array {
                 [$lines, $subtotal, $consumption] = $this->price($items);
                 self::assertDiscountFits($discount, $subtotal);
-                $total = $subtotal - $discount;
+                $total = $subtotal - $discount + $delivery['fee'];
                 if (array_sum(array_column($payments, 1)) > $total) {
                     throw new ApiException('OVERPAYMENT', 'Los pagos superan el total del pedido.', 422,
                         ['balance' => Money::fromCents($total)]);
@@ -127,6 +129,12 @@ final class OrdersService
                     'notes' => $notes,
                     'created_by' => $this->actor->id,
                     'idempotency_key' => $key,
+                    'fulfillment' => $delivery['fulfillment'],
+                    'delivery_fee' => Money::fromCents($delivery['fee']),
+                    'delivery_address' => $delivery['address'],
+                    'delivery_references' => $delivery['references'],
+                    'delivery_lat' => $delivery['lat'],
+                    'delivery_lng' => $delivery['lng'],
                 ]);
                 $this->lockStockFor($consumption, $lines);
                 // Los ítems van antes que los pagos: el trigger bloquea los ítems de un pedido con pagos.
@@ -143,7 +151,7 @@ final class OrdersService
         } catch (Throwable $e) {
             if (Db::isUniqueViolation($e, 'orders_idempotency_key_key')) {
                 $existing = $this->orders->findByIdempotencyKey($key) ?? throw $e;
-                return $this->replay($existing, $channel, $items);
+                return $this->replay($existing, $channel, $delivery, $items);
             }
             throw $e;
         }
@@ -180,8 +188,7 @@ final class OrdersService
             $this->orders->deleteItems($id);
             $this->orders->insertItems($id, $lines);
             $this->consumeExtras($id);
-            $this->orders->updateTotals($id, Money::fromCents($subtotal), Money::fromCents($discount),
-                Money::fromCents($subtotal - $discount));
+            $this->orders->updateTotals($id, Money::fromCents($subtotal), Money::fromCents($discount));
             $after = $this->get($id);
             Audit::log($this->db, $this->actor->id, 'orders', $id, 'replace_items',
                 self::auditItems($before), self::auditItems($after));
@@ -410,7 +417,7 @@ final class OrdersService
     }
 
     /** Un reintento con la misma clave devuelve el pedido ya creado; con otro contenido es un error del cliente. */
-    private function replay(array $existing, string $channel, array $items): array
+    private function replay(array $existing, string $channel, array $delivery, array $items): array
     {
         $stored = array_map(static fn (array $item): array => [
             'product_id' => (int) $item['product_id'],
@@ -419,6 +426,8 @@ final class OrdersService
             'extras' => self::extrasMap($item['extras']),
         ], $this->orders->itemsFor([(int) $existing['id']])[(int) $existing['id']] ?? []);
         if ((int) $existing['created_by'] !== $this->actor->id || $existing['channel'] !== $channel
+            || $existing['fulfillment'] !== $delivery['fulfillment']
+            || Money::toCents($existing['delivery_fee']) !== $delivery['fee']
             || self::fingerprint($stored) !== self::fingerprint($items)) {
             throw Idempotency::reused();
         }
@@ -540,6 +549,61 @@ final class OrdersService
         return $parsed;
     }
 
+    /**
+     * Modalidad y datos de entrega. El envío y la dirección solo existen en DELIVERY.
+     *
+     * @return array{fulfillment: string, fee: int, address: ?string, references: ?string, lat: ?string, lng: ?string}
+     */
+    private static function parseFulfillment(array $input, array &$errors): array
+    {
+        $fulfillment = $input['fulfillment'] ?? 'CONSUMO_LOCAL';
+        $none = ['fulfillment' => $fulfillment, 'fee' => 0, 'address' => null, 'references' => null, 'lat' => null, 'lng' => null];
+        if (!in_array($fulfillment, self::FULFILLMENTS, true)) {
+            $errors['fulfillment'] = 'Uno de: ' . implode(', ', self::FULFILLMENTS) . '.';
+            return $none;
+        }
+        $delivery = $input['delivery'] ?? null;
+        if ($fulfillment !== 'DELIVERY') {
+            if ($delivery !== null) {
+                $errors['delivery'] = 'Solo se envía con fulfillment DELIVERY.';
+            }
+            return $none;
+        }
+        if (!is_array($delivery)) {
+            $errors['delivery'] = 'Requerido para DELIVERY: {address, fee, references, lat, lng}.';
+            return $none;
+        }
+
+        $fee = Validation::money($delivery['fee'] ?? 0);
+        if ($fee === null) {
+            $errors['delivery.fee'] = 'Importe ≥ 0 con hasta 2 decimales.';
+        }
+        $address = Validation::text($delivery['address'] ?? null, 300);
+        if ($address === null) {
+            $errors['delivery.address'] = 'Requerida, máximo 300 caracteres.';
+        }
+        $references = Validation::optionalText($delivery['references'] ?? null, 300);
+        if ($references === false) {
+            $errors['delivery.references'] = 'Máximo 300 caracteres.';
+        }
+        $lat = $lng = null;
+        if (($delivery['lat'] ?? null) !== null || ($delivery['lng'] ?? null) !== null) {
+            $lat = Validation::coordinate($delivery['lat'] ?? null, 90);
+            $lng = Validation::coordinate($delivery['lng'] ?? null, 180);
+            if ($lat === null || $lng === null) {
+                $errors['delivery.location'] = 'lat (-90 a 90) y lng (-180 a 180), las dos o ninguna.';
+            }
+        }
+        return [
+            'fulfillment' => $fulfillment,
+            'fee' => $fee ?? 0,
+            'address' => $address,
+            'references' => $references === false ? null : $references,
+            'lat' => $lat,
+            'lng' => $lng,
+        ];
+    }
+
     /** null si no viene en el input. */
     private static function discount(array $input, array &$errors): ?int
     {
@@ -570,6 +634,7 @@ final class OrdersService
             ], $order['items']),
             'subtotal' => $order['subtotal'],
             'discount' => $order['discount'],
+            'delivery_fee' => $order['delivery_fee'],
             'total' => $order['total'],
         ];
     }
@@ -587,6 +652,13 @@ final class OrdersService
             'customer_name' => $row['customer_name'],
             'customer_phone' => $row['customer_phone'],
             'notes' => $row['notes'],
+            'fulfillment' => $row['fulfillment'],
+            'delivery' => $row['fulfillment'] === 'DELIVERY' ? [
+                'address' => $row['delivery_address'],
+                'references' => $row['delivery_references'],
+                'lat' => $row['delivery_lat'],
+                'lng' => $row['delivery_lng'],
+            ] : null,
             'items' => array_map(static fn (array $item): array => [
                 'id' => (int) $item['id'],
                 'product_id' => (int) $item['product_id'],
@@ -605,6 +677,7 @@ final class OrdersService
             ], $items),
             'subtotal' => $row['subtotal'],
             'discount' => $row['discount'],
+            'delivery_fee' => $row['delivery_fee'],
             'total' => $row['total'],
             'paid' => $row['paid'],
             'balance' => $row['balance'],

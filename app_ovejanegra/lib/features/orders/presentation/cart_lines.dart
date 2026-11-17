@@ -75,10 +75,10 @@ class CartTotals extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme;
     return Column(children: [
-      if (cart.discountCents > 0) ...[
+      if (cart.discountCents > 0 || cart.effectiveDeliveryFeeCents > 0)
         _row('Subtotal', Money.bob(cart.subtotalCents), style.bodyMedium),
-        _row('Descuento', '− ${Money.bob(cart.discountCents)}', style.bodyMedium),
-      ],
+      if (cart.discountCents > 0) _row('Descuento', '− ${Money.bob(cart.discountCents)}', style.bodyMedium),
+      if (cart.effectiveDeliveryFeeCents > 0) _row('Envío', Money.bob(cart.effectiveDeliveryFeeCents), style.bodyMedium),
       _row('Total', Money.bob(cart.totalCents), style.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
     ]);
   }

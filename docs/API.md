@@ -141,6 +141,11 @@ Crear pedido:
 - `payments` es opcional (hasta 5, para pagos mixtos) y exige `payments.create`. Si algo falla, no se
   guarda nada: ni el pedido, ni sus ítems, ni sus pagos.
 - `customer_phone` acepta de 7 a 15 dígitos con `+` opcional (puede ser extranjero); se guarda sin espacios.
+- `fulfillment`: `CONSUMO_LOCAL` (por defecto), `RECOGER` o `DELIVERY`. Solo con `DELIVERY` se envía
+  `delivery: {address (requerida, hasta 300), fee ("5.00", por defecto 0), references?, lat?, lng?}`;
+  `lat` y `lng` van juntas o ninguna. `total = subtotal − discount + delivery_fee`. Editar los ítems
+  conserva la modalidad y el envío. Un reintento con otra modalidad u otro envío responde 409
+  `IDEMPOTENCY_KEY_REUSED`.
 
 **Idempotency-Key** (UUID, obligatoria en `POST /orders` y `POST /orders/{id}/payments`): la app genera una
 por operación y la repite en cada reintento. Repetir la misma petición devuelve lo ya creado, con 200.

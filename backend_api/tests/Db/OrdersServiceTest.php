@@ -261,6 +261,62 @@ final class OrdersServiceTest extends DbTestCase
         }
     }
 
+    public function testDeliveryConEnvioSumaAlTotalYElDescuentoNoLoToca(): void
+    {
+        $order = $this->create([
+            'channel' => 'WHATSAPP',
+            'fulfillment' => 'DELIVERY',
+            'discount' => '0.50',
+            'delivery' => ['fee' => '5', 'address' => ' Av.  Busch 123 ', 'references' => 'Portón verde', 'lat' => -16.500123456, 'lng' => -68.12],
+        ])['order'];
+
+        $this->assertSame(['25.50', '0.50', '5.00', '30.00', '30.00'],
+            [$order['subtotal'], $order['discount'], $order['delivery_fee'], $order['total'], $order['balance']]);
+        $this->assertSame(['DELIVERY', 'Av. Busch 123', 'Portón verde', '-16.500123', '-68.120000'],
+            [$order['fulfillment'], $order['delivery']['address'], $order['delivery']['references'],
+             $order['delivery']['lat'], $order['delivery']['lng']]);
+
+        // Editar los ítems conserva el envío en el total.
+        $edited = $this->orders->replaceItems($order['id'], ['items' => [['product_id' => $this->fries, 'quantity' => 1]], 'discount' => '0']);
+        $this->assertSame(['12.00', '5.00', '17.00'], [$edited['subtotal'], $edited['delivery_fee'], $edited['total']]);
+
+        // El envío entra al cobro: se puede pagar el total completo, no más.
+        $this->assertApiError('OVERPAYMENT', 422, fn () => $this->payments->create($order['id'], ['method' => 'QR', 'amount' => '17.01'], self::uuid()));
+        $this->payments->create($order['id'], ['method' => 'QR', 'amount' => '17.00'], self::uuid());
+        $this->assertSame('PAGADO', $this->orders->get($order['id'])['payment_status']);
+    }
+
+    public function testModalidadPorDefectoYValidacionesDeEntrega(): void
+    {
+        $order = $this->create()['order'];
+        $this->assertSame(['CONSUMO_LOCAL', null, '0.00'], [$order['fulfillment'], $order['delivery'], $order['delivery_fee']]);
+        $this->assertSame('RECOGER', $this->create(['fulfillment' => 'RECOGER'])['order']['fulfillment']);
+
+        $invalid = [
+            ['fulfillment' => 'MESA'],
+            ['fulfillment' => 'DELIVERY'],
+            ['fulfillment' => 'DELIVERY', 'delivery' => ['fee' => '5']],
+            ['fulfillment' => 'DELIVERY', 'delivery' => ['address' => 'x', 'fee' => '-1']],
+            ['fulfillment' => 'DELIVERY', 'delivery' => ['address' => 'x', 'lat' => -16.5]],
+            ['fulfillment' => 'DELIVERY', 'delivery' => ['address' => 'x', 'lat' => 91, 'lng' => 0]],
+            ['fulfillment' => 'RECOGER', 'delivery' => ['address' => 'x']],
+        ];
+        foreach ($invalid as $input) {
+            $this->assertApiError('VALIDATION_ERROR', 400, fn () => $this->create($input));
+        }
+    }
+
+    public function testReintentoConOtraModalidadEsError(): void
+    {
+        $key = self::uuid();
+        $input = ['channel' => 'LOCAL', 'items' => [['product_id' => $this->burger, 'quantity' => 1]]];
+        $this->orders->create($input, $key);
+        $this->assertSame(false, $this->orders->create($input, $key)['created']);
+        $this->assertApiError('IDEMPOTENCY_KEY_REUSED', 409, fn () => $this->orders->create($input + [
+            'fulfillment' => 'DELIVERY', 'delivery' => ['address' => 'Calle 1', 'fee' => '5'],
+        ], $key));
+    }
+
     private function adminOrders(): OrdersService
     {
         return new OrdersService($this->db, $this->admin);

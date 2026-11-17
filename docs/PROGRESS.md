@@ -246,7 +246,25 @@
   - `settings.manage` solo para el ADMIN; las rutas de cobro responden 401 sin sesión.
   - APK `0.8.7` (solo staging) instalado por USB en el teléfono del usuario.
 
+- 2026-11-17: **Plan de la Fase 10 (WhatsApp como canal de pedidos)** aprobado por el usuario: bot con
+  enlace a una página del menú (Cloud API de Meta), solicitudes que el cajero acepta o rechaza, envío
+  fijado por el cajero y pago en efectivo, QR o mixto con verificación manual. Ver `PLAN.md` y
+  `DECISIONS.md`.
+
+- 2026-11-17: **10a: modalidad y envío en los pedidos** (API `0.8.2`, migración `009_fulfillment.sql`;
+  app `0.8.8+9`):
+  - `fulfillment` (local / recoger / delivery), dirección, referencias, GPS opcional y `delivery_fee`.
+    `total = subtotal − descuento + envío`, garantizado por CHECK. Editar los ítems conserva el envío.
+  - App: modalidad en Nueva venta; dirección obligatoria y costo de envío en delivery; "Envío" en los
+    totales; la tarjeta y el detalle muestran la modalidad y la dirección.
+  - Backend 129 tests (4 nuevos) y app 58 (3 nuevos). Migración aplicada solo en dev (health `0.8.2`,
+    9 migraciones).
+
 ## Próximo
+- 10a: PR a `develop` y, con el OK del usuario, migración 009 y deploy en staging.
+- 10b: página pública del menú y solicitudes `online_orders`. Antes, confirmar con el usuario las
+  salsas (extras a Bs 0) y las dependencias opcionales (`url_launcher` para el mapa, sonido del aviso).
+- Requisito para 10c: cuenta de Meta Business y app de WhatsApp (mientras tanto, número de prueba de Meta).
 - El usuario sube el QR real de su banco desde "Configuración de cobro" y prueba el cobro mixto.
 - Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
   que registrar una compra de ese insumo.

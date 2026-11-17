@@ -47,6 +47,39 @@ enum Channel {
   static Channel fromApi(String value) => values.firstWhere((c) => c.api == value);
 }
 
+enum Fulfillment {
+  consumoLocal('CONSUMO_LOCAL', 'Consumir en el local', 'Local'),
+  recoger('RECOGER', 'Recoger en local', 'Recoger'),
+  delivery('DELIVERY', 'Delivery', 'Delivery');
+
+  const Fulfillment(this.api, this.label, this.shortLabel);
+
+  final String api;
+  final String label;
+  final String shortLabel;
+
+  static Fulfillment fromApi(String value) => values.firstWhere((f) => f.api == value);
+}
+
+/// Datos de entrega de un pedido DELIVERY.
+class DeliveryInfo {
+  const DeliveryInfo({required this.address, this.references, this.lat, this.lng});
+
+  final String address;
+  final String? references;
+  final String? lat;
+  final String? lng;
+
+  bool get hasLocation => lat != null && lng != null;
+
+  factory DeliveryInfo.fromJson(Map<String, dynamic> json) => DeliveryInfo(
+        address: json['address'] as String,
+        references: json['references'] as String?,
+        lat: json['lat'] as String?,
+        lng: json['lng'] as String?,
+      );
+}
+
 class OrderItemExtra {
   const OrderItemExtra({required this.extraId, required this.name, required this.unitCents, required this.quantity});
 
@@ -156,6 +189,9 @@ class Order {
     this.notes,
     this.cancelReason,
     this.payments = const [],
+    this.fulfillment = Fulfillment.consumoLocal,
+    this.deliveryFeeCents = 0,
+    this.delivery,
   });
 
   final int id;
@@ -172,6 +208,13 @@ class Order {
   final int totalCents;
   final int paidCents;
   final int balanceCents;
+  final Fulfillment fulfillment;
+
+  /// Costo de envío, incluido en [totalCents].
+  final int deliveryFeeCents;
+
+  /// Solo en DELIVERY.
+  final DeliveryInfo? delivery;
 
   /// SIN_PAGAR | PARCIAL | PAGADO, calculado por el servidor con los pagos confirmados.
   final String paymentStatus;
@@ -209,6 +252,9 @@ class Order {
       createdAt: json['created_at'] as String,
       cancelReason: cancelled?['reason'] as String?,
       payments: [for (final p in json['payments'] as List? ?? const []) Payment.fromJson(p as Map<String, dynamic>)],
+      fulfillment: Fulfillment.fromApi(json['fulfillment'] as String? ?? 'CONSUMO_LOCAL'),
+      deliveryFeeCents: Money.toCents(json['delivery_fee'] as String? ?? '0.00'),
+      delivery: json['delivery'] == null ? null : DeliveryInfo.fromJson(json['delivery'] as Map<String, dynamic>),
     );
   }
 }

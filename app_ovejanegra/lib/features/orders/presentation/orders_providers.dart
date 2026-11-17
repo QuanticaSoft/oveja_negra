@@ -35,6 +35,9 @@ class CartController extends Notifier<Cart> {
   void setDiscount(int cents) => state = state.withDiscount(cents);
   void setCustomer({String? name, String? phone}) => state = state.withCustomer(name: name, phone: phone);
   void setNotes(String notes) => state = state.withNotes(notes);
+  void setFulfillment(Fulfillment fulfillment) => state = state.withFulfillment(fulfillment);
+  void setDelivery({int? feeCents, String? address, String? references}) =>
+      state = state.withDelivery(feeCents: feeCents, address: address, references: references);
   void clear() {
     unavailable = {};
     unavailableExtras = {};

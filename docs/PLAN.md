@@ -22,6 +22,14 @@ Cada fase: analizar lo existente → proponer → **aprobación del usuario** �
 | 8c | `feature/f8c-app-compras-inventario` | Compras, insumos, kardex, ajustes, consumos y proveedores | ídem |
 | 8d | `feature/f8d-app-finanzas-reportes` | Gastos, dashboard con gráficos, reportes, usuarios y permisos | ídem |
 | 9 | `feature/f9-hardening` | Revisión de seguridad, validaciones, documentación de instalación y despliegue | checklist + prueba de punta a punta |
+| 10a | `feature/f10a-modalidad-envio` | Modalidad del pedido (local / recoger / delivery), dirección, GPS y costo de envío en el total | tests de API y app |
+| 10b | `feature/f10b-pedidos-online` | Página pública del menú con enlace por token, solicitudes `online_orders`, aceptar/rechazar en Pedidos | aceptar crea el pedido; rechazar no toca stock |
+| 10c | `feature/f10c-whatsapp` | Webhook de WhatsApp Cloud API (firma, `wamid` único), enlace y avisos al cliente | payload firmado de prueba; número de prueba de Meta |
+| 10d | `feature/f10d-comprobante-qr` | Comprobante QR desde WhatsApp, "pago pendiente de verificación" y confirmación por el cajero | el comprobante no genera ingreso |
+
+Fase 10 (WhatsApp como canal de pedidos): el cliente arma el pedido en una página enlazada desde
+WhatsApp; el cajero lo acepta en la app y recién ahí se crea el pedido real. El ingreso se registra
+solo cuando el cajero confirma el pago. Detalle en `DECISIONS.md` (2026-11-17).
 
 ## Etapa 2 (después del MVP)
 

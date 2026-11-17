@@ -70,6 +70,10 @@ class Cart {
     this.customerName = '',
     this.customerPhone = '',
     this.notes = '',
+    this.fulfillment = Fulfillment.consumoLocal,
+    this.deliveryFeeCents = 0,
+    this.deliveryAddress = '',
+    this.deliveryReferences = '',
   });
 
   static const maxQuantity = 99;
@@ -81,12 +85,26 @@ class Cart {
   final String customerName;
   final String customerPhone;
   final String notes;
+  final Fulfillment fulfillment;
+
+  /// Solo cuenta en DELIVERY: al cambiar de modalidad se conserva lo escrito, pero no se cobra.
+  final int deliveryFeeCents;
+  final String deliveryAddress;
+  final String deliveryReferences;
+
+  bool get isDelivery => fulfillment == Fulfillment.delivery;
+  int get effectiveDeliveryFeeCents => isDelivery ? deliveryFeeCents : 0;
+
+  /// El servidor exige la dirección en DELIVERY.
+  bool get deliveryIncomplete => isDelivery && deliveryAddress.trim().isEmpty;
 
   bool get isEmpty => lines.isEmpty;
   int get itemCount => lines.fold(0, (sum, l) => sum + l.quantity);
   int get subtotalCents => lines.fold(0, (sum, l) => sum + l.lineCents);
   bool get discountExceedsSubtotal => discountCents > subtotalCents;
-  int get totalCents => discountExceedsSubtotal ? 0 : subtotalCents - discountCents;
+
+  /// El descuento aplica a los productos; el envío se suma aparte.
+  int get totalCents => (discountExceedsSubtotal ? 0 : subtotalCents - discountCents) + effectiveDeliveryFeeCents;
 
   /// Unidades de un producto en todas sus líneas (para el contador de la grilla).
   int quantityOf(int productId) =>
@@ -118,11 +136,21 @@ class Cart {
   Cart withDiscount(int cents) => _copy(discountCents: cents < 0 ? 0 : cents);
   Cart withCustomer({String? name, String? phone}) => _copy(customerName: name, customerPhone: phone);
   Cart withNotes(String notes) => _copy(notes: notes);
+  Cart withFulfillment(Fulfillment fulfillment) => _copy(fulfillment: fulfillment);
+  Cart withDelivery({int? feeCents, String? address, String? references}) => _copy(
+      deliveryFeeCents: feeCents == null ? null : (feeCents < 0 ? 0 : feeCents),
+      deliveryAddress: address,
+      deliveryReferences: references);
 
   /// Carrito para editar los ítems de un pedido existente (precios del snapshot del pedido).
+  /// La modalidad y el envío no se editan aquí, pero cuentan en el total que se muestra.
   factory Cart.fromOrder(Order order) => Cart(
         channel: order.channel,
         discountCents: order.discountCents,
+        fulfillment: order.fulfillment,
+        deliveryFeeCents: order.deliveryFeeCents,
+        deliveryAddress: order.delivery?.address ?? '',
+        deliveryReferences: order.delivery?.references ?? '',
         lines: [
           for (final i in order.items)
             CartLine(
@@ -148,10 +176,28 @@ class Cart {
         if (customerName.trim().isNotEmpty) 'customer_name': customerName.trim(),
         if (customerPhone.trim().isNotEmpty) 'customer_phone': customerPhone.trim(),
         if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+        if (fulfillment != Fulfillment.consumoLocal) 'fulfillment': fulfillment.api,
+        if (isDelivery)
+          'delivery': {
+            'address': deliveryAddress.trim(),
+            'fee': Money.toApi(deliveryFeeCents),
+            if (deliveryReferences.trim().isNotEmpty) 'references': deliveryReferences.trim(),
+          },
         if (payments.isNotEmpty) 'payments': [for (final p in payments) p.toApi()],
       };
 
-  Cart _copy({List<CartLine>? lines, Channel? channel, int? discountCents, String? customerName, String? customerPhone, String? notes}) =>
+  Cart _copy({
+    List<CartLine>? lines,
+    Channel? channel,
+    int? discountCents,
+    String? customerName,
+    String? customerPhone,
+    String? notes,
+    Fulfillment? fulfillment,
+    int? deliveryFeeCents,
+    String? deliveryAddress,
+    String? deliveryReferences,
+  }) =>
       Cart(
         lines: lines ?? this.lines,
         channel: channel ?? this.channel,
@@ -159,6 +205,10 @@ class Cart {
         customerName: customerName ?? this.customerName,
         customerPhone: customerPhone ?? this.customerPhone,
         notes: notes ?? this.notes,
+        fulfillment: fulfillment ?? this.fulfillment,
+        deliveryFeeCents: deliveryFeeCents ?? this.deliveryFeeCents,
+        deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+        deliveryReferences: deliveryReferences ?? this.deliveryReferences,
       );
 }
 
