@@ -118,8 +118,13 @@ class _CartPanelState extends ConsumerState<CartPanel> {
   late final TextEditingController _phone;
   late final TextEditingController _notes;
   late final TextEditingController _discount;
+  late final TextEditingController _address;
+  late final TextEditingController _references;
+  late final TextEditingController _deliveryFee;
   bool _submitting = false;
   String? _error;
+
+  List<TextEditingController> get _fields => [_name, _phone, _notes, _discount, _address, _references, _deliveryFee];
 
   @override
   void initState() {
@@ -130,11 +135,14 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     _phone = TextEditingController(text: cart.customerPhone);
     _notes = TextEditingController(text: cart.notes);
     _discount = TextEditingController(text: cart.discountCents == 0 ? '' : Money.toApi(cart.discountCents));
+    _address = TextEditingController(text: cart.deliveryAddress);
+    _references = TextEditingController(text: cart.deliveryReferences);
+    _deliveryFee = TextEditingController(text: cart.deliveryFeeCents == 0 ? '' : Money.toApi(cart.deliveryFeeCents));
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _phone, _notes, _discount]) {
+    for (final c in _fields) {
       c.dispose();
     }
     super.dispose();
@@ -164,12 +172,17 @@ class _CartPanelState extends ConsumerState<CartPanel> {
       if (mounted) {
         setState(() {
           _submitting = false;
-          _error = e.fieldError('discount') ?? e.fieldError('customer_phone') ?? _extrasMessage(e) ?? e.message;
+          _error = e.fieldError('discount') ??
+              e.fieldError('customer_phone') ??
+              e.fieldError('delivery.address') ??
+              e.fieldError('delivery.fee') ??
+              _extrasMessage(e) ??
+              e.message;
         });
       }
       return;
     }
-    for (final c in [_name, _phone, _notes, _discount]) {
+    for (final c in _fields) {
       c.clear();
     }
     if (!mounted) {
@@ -218,7 +231,10 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     final user = ref.watch(sessionControllerProvider).value;
     final canDiscount = user?.can('orders.discount') ?? false;
     final canCharge = user?.can('payments.create') ?? false;
-    final blocked = cart.isEmpty || cart.discountExceedsSubtotal || cart.lines.any((l) => controller.unavailable.contains(l.productId));
+    final blocked = cart.isEmpty ||
+        cart.discountExceedsSubtotal ||
+        cart.deliveryIncomplete ||
+        cart.lines.any((l) => controller.unavailable.contains(l.productId));
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -239,7 +255,43 @@ class _CartPanelState extends ConsumerState<CartPanel> {
           rejected: controller.unavailable,
           rejectedExtras: controller.unavailableExtras,
         ),
-        if (cart.channel == Channel.whatsapp) ...[
+        SegmentedButton<Fulfillment>(
+          key: const Key('sale.fulfillment'),
+          segments: [for (final f in Fulfillment.values) ButtonSegment(value: f, label: Text(f.shortLabel))],
+          selected: {cart.fulfillment},
+          onSelectionChanged: (s) => controller.setFulfillment(s.first),
+        ),
+        const SizedBox(height: 8),
+        if (cart.isDelivery) ...[
+          TextField(
+            key: const Key('sale.deliveryAddress'),
+            controller: _address,
+            maxLength: 300,
+            decoration: InputDecoration(
+              labelText: 'Dirección de entrega',
+              counterText: '',
+              errorText: cart.deliveryIncomplete && !cart.isEmpty ? 'Requerida para delivery.' : null,
+            ),
+            onChanged: (v) => controller.setDelivery(address: v),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _references,
+            maxLength: 300,
+            decoration: const InputDecoration(labelText: 'Referencias (opcional)', counterText: ''),
+            onChanged: (v) => controller.setDelivery(references: v),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const Key('sale.deliveryFee'),
+            controller: _deliveryFee,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Costo de envío', prefixText: 'Bs '),
+            onChanged: (v) => controller.setDelivery(feeCents: Money.parseInput(v) ?? 0),
+          ),
+          const SizedBox(height: 8),
+        ],
+        if (cart.channel == Channel.whatsapp || cart.isDelivery) ...[
           TextField(
             controller: _name,
             decoration: const InputDecoration(labelText: 'Cliente (opcional)'),

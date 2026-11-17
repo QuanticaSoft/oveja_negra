@@ -155,6 +155,10 @@ class OrderCard extends StatelessWidget {
                 if (i.notes != null) TextSpan(text: '  · ${i.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
               ])),
             if (order.notes != null) Text('Nota: ${order.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
+            if (order.fulfillment != Fulfillment.consumoLocal) ...[
+              const SizedBox(height: 6),
+              FulfillmentLabel(order: order),
+            ],
             const SizedBox(height: 8),
             Row(children: [
               Text(Money.bob(order.totalCents), style: const TextStyle(fontWeight: FontWeight.w800)),

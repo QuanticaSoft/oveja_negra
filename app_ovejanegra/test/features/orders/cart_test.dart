@@ -53,6 +53,34 @@ void main() {
     });
   });
 
+  test('delivery: el envío se suma después del descuento y solo cuenta en DELIVERY', () {
+    var cart = const Cart().add(burger).add(burger).withDiscount(100).withDelivery(feeCents: 500, address: ' Av. Busch 123 ');
+    expect(cart.totalCents, 5000, reason: 'sin DELIVERY el envío escrito no se cobra');
+    expect(cart.toApi(const []).containsKey('delivery'), isFalse);
+
+    cart = cart.withFulfillment(Fulfillment.delivery);
+    expect([cart.subtotalCents, cart.effectiveDeliveryFeeCents, cart.totalCents], [5100, 500, 5500]);
+    expect(cart.withDiscount(9999).totalCents, 500, reason: 'el descuento excesivo no anula el envío');
+    expect(cart.toApi(const [])['fulfillment'], 'DELIVERY');
+    expect(cart.toApi(const [])['delivery'], {'address': 'Av. Busch 123', 'fee': '5.00'});
+
+    expect(cart.withDelivery(address: '  ').deliveryIncomplete, isTrue);
+    expect(cart.withFulfillment(Fulfillment.recoger).toApi(const [])['fulfillment'], 'RECOGER');
+  });
+
+  test('pedido delivery del API: envío, dirección y carrito de edición', () {
+    final order = Order.fromJson({
+      ...orderJson(total: '56.00'),
+      'subtotal': '51.00',
+      'fulfillment': 'DELIVERY',
+      'delivery_fee': '5.00',
+      'delivery': {'address': 'Av. Busch 123', 'references': 'Portón verde', 'lat': '-16.500000', 'lng': '-68.100000'},
+    });
+    expect([order.fulfillment, order.deliveryFeeCents, order.totalCents], [Fulfillment.delivery, 500, 5600]);
+    expect([order.delivery!.address, order.delivery!.references, order.delivery!.hasLocation], ['Av. Busch 123', 'Portón verde', true]);
+    expect(Cart.fromOrder(order).totalCents, 5600);
+  });
+
   test('vuelto en efectivo y reglas del cobro mixto', () {
     expect(const PaymentDraft(PaymentMethod.efectivo, 5100, receivedCents: 10000).changeCents, 4900);
     expect(const PaymentDraft(PaymentMethod.efectivo, 5100, receivedCents: 5000).receivedIsShort, isTrue);

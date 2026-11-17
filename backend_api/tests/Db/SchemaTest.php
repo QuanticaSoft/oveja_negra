@@ -50,6 +50,24 @@ final class SchemaTest extends DbTestCase
         $this->assertDbRejects(self::CHECK_VIOLATION, $insert, ['50.00', '5.00', '50.00', $userId]);
     }
 
+    public function testEnvioSoloEnDeliveryYDentroDelTotal(): void
+    {
+        $userId = $this->createUser();
+        $insert = "INSERT INTO orders (business_date, daily_number, channel, subtotal, total, created_by,
+                                       fulfillment, delivery_fee, delivery_address, delivery_lat, delivery_lng)
+                   VALUES ('1999-12-31', ?, 'WHATSAPP', '35.00', ?, ?, ?, ?, ?, ?, ?)";
+        // Total sin el envío, envío fuera de delivery, delivery sin dirección y GPS a medias.
+        $this->assertDbRejects(self::CHECK_VIOLATION, $insert, [1, '35.00', $userId, 'DELIVERY', '5.00', 'Calle 1', null, null]);
+        $this->assertDbRejects(self::CHECK_VIOLATION, $insert, [1, '40.00', $userId, 'RECOGER', '5.00', null, null, null]);
+        $this->assertDbRejects(self::CHECK_VIOLATION, $insert, [1, '40.00', $userId, 'DELIVERY', '5.00', null, null, null]);
+        $this->assertDbRejects(self::CHECK_VIOLATION, $insert, [1, '40.00', $userId, 'DELIVERY', '5.00', 'Calle 1', '-16.5', null]);
+        $this->assertDbRejects(self::CHECK_VIOLATION, $insert, [1, '35.00', $userId, 'RECOGER', '0', 'Calle 1', null, null]);
+
+        $this->db->prepare($insert)->execute([1, '40.00', $userId, 'DELIVERY', '5.00', 'Calle 1', '-16.5', '-68.1']);
+        $this->db->prepare($insert)->execute([2, '35.00', $userId, 'RECOGER', '0', null, null, null]);
+        $this->assertSame(2, (int) $this->scalar("SELECT count(*) FROM orders WHERE business_date = '1999-12-31'"));
+    }
+
     public function testPedidoNoSeBorra(): void
     {
         $orderId = $this->createOrder($this->createUser());

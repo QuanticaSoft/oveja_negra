@@ -130,6 +130,24 @@ final class Validation
     }
 
     /**
+     * Latitud o longitud en grados, como texto con hasta 6 decimales (≈ 10 cm).
+     * No es dinero: el redondeo de un float del GPS es aceptable.
+     */
+    public static function coordinate(mixed $value, int $limit): ?string
+    {
+        if (is_string($value) && is_numeric($value)) {
+            $value = (float) $value;
+        }
+        if (!is_int($value) && !is_float($value)) {
+            return null;
+        }
+        if (!is_finite((float) $value) || abs($value) > $limit) {
+            return null;
+        }
+        return number_format((float) $value, 6, '.', '');
+    }
+
+    /**
      * Importe ≥ 0 en centavos. Acepta "12.50", 12 o 12.5 (json_decode entrega floats:
      * se convierten por su representación textual más corta, así 12.5 no se vuelve 12.4999…).
      */

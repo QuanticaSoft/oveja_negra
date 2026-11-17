@@ -83,15 +83,18 @@ final class OrderRepository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO orders (business_date, daily_number, channel, subtotal, discount, total,
-                                 customer_name, customer_phone, notes, created_by, idempotency_key)
+                                 customer_name, customer_phone, notes, created_by, idempotency_key,
+                                 fulfillment, delivery_fee, delivery_address, delivery_references, delivery_lat, delivery_lng)
              VALUES (?, (SELECT COALESCE(max(daily_number), 0) + 1 FROM orders WHERE business_date = ?),
-                     ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              RETURNING id'
         );
         $stmt->execute([
             $order['business_date'], $order['business_date'], $order['channel'], $order['subtotal'],
             $order['discount'], $order['total'], $order['customer_name'], $order['customer_phone'],
             $order['notes'], $order['created_by'], $order['idempotency_key'],
+            $order['fulfillment'], $order['delivery_fee'], $order['delivery_address'], $order['delivery_references'],
+            $order['delivery_lat'], $order['delivery_lng'],
         ]);
         return (int) $stmt->fetchColumn();
     }
@@ -175,10 +178,11 @@ final class OrderRepository
         return $allowed;
     }
 
-    public function updateTotals(int $orderId, string $subtotal, string $discount, string $total): void
+    /** El total lo calcula Postgres con el envío ya guardado, que la edición de ítems no cambia. */
+    public function updateTotals(int $orderId, string $subtotal, string $discount): void
     {
-        $this->db->prepare('UPDATE orders SET subtotal = ?, discount = ?, total = ? WHERE id = ?')
-            ->execute([$subtotal, $discount, $total, $orderId]);
+        $this->db->prepare('UPDATE orders SET subtotal = ?, discount = ?, total = ?::numeric - ?::numeric + delivery_fee WHERE id = ?')
+            ->execute([$subtotal, $discount, $subtotal, $discount, $orderId]);
     }
 
     public function setStatus(int $orderId, string $status): void

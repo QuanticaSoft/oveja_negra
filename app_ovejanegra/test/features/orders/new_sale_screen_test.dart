@@ -63,6 +63,39 @@ void main() {
     expect(adapter.requests.where((r) => r.path == '/orders').length, 1);
   });
 
+  testWidgets('delivery: exige la dirección, suma el envío y lo envía al API', (tester) async {
+    Map<String, dynamic>? sent;
+    await pumpLoggedIn(tester, permissions: cashier, size: const Size(1280, 1600), routes: (o) async {
+      if (o.path == '/menu') {
+        return (200, menuJson());
+      }
+      if (o.method == 'POST' && o.path == '/orders') {
+        sent = Map<String, dynamic>.from(o.data as Map);
+        return (201, {'data': orderJson(number: 13, total: '30.50')});
+      }
+      return (404, errorJson('NOT_FOUND'));
+    });
+
+    await tester.tap(find.byKey(const Key('product.10')));
+    await tester.pump();
+    await tester.tap(find.text('Delivery'));
+    await tester.pump();
+    expect(find.text('Requerida para delivery.'), findsOneWidget);
+    final save = find.byKey(const Key('sale.saveUnpaid'));
+    expect(tester.widget<OutlinedButton>(save).onPressed, isNull, reason: 'sin dirección no se puede guardar');
+
+    await tester.enterText(find.byKey(const Key('sale.deliveryAddress')), 'Av. Busch 123');
+    await tester.enterText(find.byKey(const Key('sale.deliveryFee')), '5');
+    await tester.pump();
+    expect(find.text('Envío'), findsOneWidget);
+    expect(find.text('Bs 30,50'), findsOneWidget);
+
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(sent?['fulfillment'], 'DELIVERY');
+    expect(sent?['delivery'], {'address': 'Av. Busch 123', 'fee': '5.00'});
+  });
+
   testWidgets('sin payments.create solo puede guardar el pedido, sin cobrar', (tester) async {
     await pumpLoggedIn(tester,
         permissions: ['orders.create', 'catalog.read'],

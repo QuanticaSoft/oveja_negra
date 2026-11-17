@@ -128,6 +128,11 @@ class _OrderDetailState extends ConsumerState<_OrderDetail> {
         if (order.customerName != null || order.customerPhone != null)
           Text('Cliente: ${[order.customerName, order.customerPhone].whereType<String>().join(' · ')}'),
         if (order.notes != null) Text('Nota: ${order.notes}', style: const TextStyle(fontStyle: FontStyle.italic)),
+        const SizedBox(height: 8),
+        FulfillmentLabel(order: order),
+        if (order.delivery?.references != null) Text('Referencias: ${order.delivery!.references}'),
+        if (order.delivery?.hasLocation ?? false)
+          Text('Ubicación: ${order.delivery!.lat}, ${order.delivery!.lng}', style: const TextStyle(color: AppColors.grey)),
         if (order.cancelReason != null) Text('Motivo de cancelación: ${order.cancelReason}', style: TextStyle(color: Theme.of(context).colorScheme.error)),
         const SizedBox(height: 12),
         Card(
@@ -144,10 +149,9 @@ class _OrderDetailState extends ConsumerState<_OrderDetail> {
                   ),
               ],
               const Divider(),
-              if (order.discountCents > 0) ...[
-                _line('Subtotal', Money.bob(order.subtotalCents)),
-                _line('Descuento', '− ${Money.bob(order.discountCents)}'),
-              ],
+              if (order.discountCents > 0 || order.deliveryFeeCents > 0) _line('Subtotal', Money.bob(order.subtotalCents)),
+              if (order.discountCents > 0) _line('Descuento', '− ${Money.bob(order.discountCents)}'),
+              if (order.deliveryFeeCents > 0) _line('Envío', Money.bob(order.deliveryFeeCents)),
               _line('Total', Money.bob(order.totalCents), bold: true),
               _line('Pagado', Money.bob(order.paidCents)),
               if (order.balanceCents > 0) _line('Saldo', Money.bob(order.balanceCents), bold: true),

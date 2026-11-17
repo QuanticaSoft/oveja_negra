@@ -3,6 +3,34 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../domain/order.dart';
 
+/// "Delivery · Av. Busch 123" con su icono; las otras modalidades, solo el nombre.
+class FulfillmentLabel extends StatelessWidget {
+  const FulfillmentLabel({super.key, required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (order.fulfillment) {
+      Fulfillment.consumoLocal => Icons.restaurant_outlined,
+      Fulfillment.recoger => Icons.shopping_bag_outlined,
+      Fulfillment.delivery => Icons.delivery_dining_outlined,
+    };
+    final address = order.delivery?.address;
+    return Row(children: [
+      Icon(icon, size: 18),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          [order.fulfillment.label, ?address].join(' · '),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ]);
+  }
+}
+
 /// Etiqueta de estado del pedido o del pago, con color.
 class StatusPill extends StatelessWidget {
   const StatusPill(this.label, {super.key, required this.color, this.dark = false});

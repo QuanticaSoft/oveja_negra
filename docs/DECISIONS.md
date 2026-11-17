@@ -2,6 +2,30 @@
 
 Formato: fecha, decisión y por qué. Las decisiones nuevas van arriba.
 
+## 2026-11-17: WhatsApp como canal de pedidos (Fase 10)
+Pedido por el usuario. Decisiones aprobadas:
+- **WhatsApp Cloud API oficial de Meta** (webhook en PHP; funciona en flamenco sin node ni sudo).
+- El bot manda un **enlace personal a una página del menú**; el pedido no se arma conversando. Evita
+  una máquina de estados por chat y los errores del texto libre.
+- Lo que manda el cliente es una **solicitud** (`online_orders`), no un pedido. El pedido real se crea
+  cuando el cajero la acepta, con los precios de la BD. Una solicitud abandonada o rechazada no toca
+  stock, ingresos, reportes ni la numeración diaria.
+- **El costo de envío lo fija el cajero** al aceptar un delivery.
+- El cliente elige **efectivo, QR o mixto**. El comprobante QR es solo evidencia: el ingreso se
+  registra cuando el cajero confirma el pago, como siempre.
+- Las salsas se modelarán como extras a Bs 0 (se define en 10b).
+
+## 2026-11-17: Modalidad y costo de envío en el pedido (10a)
+- `orders.fulfillment`: `CONSUMO_LOCAL` (por defecto), `RECOGER` o `DELIVERY`. Es independiente del
+  canal: un pedido de WhatsApp puede ser para recoger y uno del local puede ir por delivery.
+- `delivery_fee` es una columna del pedido, **no un producto**: así no ensucia el ranking de productos.
+  `total = subtotal − descuento + envío`. El descuento solo aplica a los productos.
+- El envío entra en "vendido" (dashboard y reportes) porque se cobra junto con el pedido.
+- La BD exige la dirección en DELIVERY y prohíbe envío y datos de entrega en las otras modalidades.
+  GPS opcional: latitud y longitud juntas o ninguna.
+- Editar los ítems conserva la modalidad y el envío. Los pedidos anteriores quedan como
+  `CONSUMO_LOCAL` sin envío.
+
 ## 2026-11-15: Cobro Efectivo / QR / Mixto con el QR fijo del banco
 Pedido por el usuario. En Bolivia el QR que leen las apps bancarias lo genera el banco: la app no puede
 fabricarlo solo con el número de cuenta. Decisiones (aprobadas por el usuario):
