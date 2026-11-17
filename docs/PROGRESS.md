@@ -260,8 +260,13 @@
   - Backend 129 tests (4 nuevos) y app 58 (3 nuevos). Migración aplicada solo en dev (health `0.8.2`,
     9 migraciones).
 
+- 2026-11-17: PR #24 (10a) integrado y **desplegado en staging**:
+  - Migración 009 aplicada (9 en total); health `0.8.2`.
+  - APK `0.8.8` (solo staging) generado en `~/Desktop/oveja_negra_apk/`, pendiente de instalar en el
+    teléfono del usuario.
+
 ## Próximo
-- 10a: PR a `develop` y, con el OK del usuario, migración 009 y deploy en staging.
+- El usuario instala el APK `0.8.8` y prueba Local / Recoger / Delivery con envío en staging.
 - 10b: página pública del menú y solicitudes `online_orders`. Antes, confirmar con el usuario las
   salsas (extras a Bs 0) y las dependencias opcionales (`url_launcher` para el mapa, sonido del aviso).
 - Requisito para 10c: cuenta de Meta Business y app de WhatsApp (mientras tanto, número de prueba de Meta).
@@ -269,5 +274,3 @@
 - Prueba de los extras por el usuario en staging. Para que un extra con insumo se habilite, antes hay
   que registrar una compra de ese insumo.
 - Fase 9 (endurecimiento y salida a producción), pendiente de las respuestas del usuario.
-- Propuesta: APK de prueba apuntando a staging para que el usuario lo instale en su teléfono.
-  Después, Fase 9 (revisión de seguridad, validaciones y documentación).
